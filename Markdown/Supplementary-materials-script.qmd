@@ -1199,7 +1199,7 @@ flipped_pca <-
 ### Labels and dimensions loaded onto PC1:
 
 @fig-PC1Loadings depicts the variables loaded onto PC1 from the label
-PCA (Figure 4A in the manuscript). A '**+**' indicates that a variable
+PCA (Figure 6A in the manuscript). A '**+**' indicates that a variable
 is **positively** loaded on the PC (as PC1 score increases, the value of
 the variable increases). A '**-**' indicates that label category is
 **negatively** loaded on the PC (as PC1 score increases, value of that
@@ -1240,7 +1240,7 @@ capture perceived **social class** and **accent** **broadness**.
 ### Labels and dimensions loaded onto PC2
 
 @fig-PC2Loadings is the same as @fig-PC1Loadings except it depicts the
-variables loaded onto PC2 from the label PCA (Figure 4B in the
+variables loaded onto PC2 from the label PCA (Figure 6B in the
 manuscript).
 
 ```{r}
@@ -1273,7 +1273,7 @@ appears to capture perceived **speed** and **pitch**.
 
 ```{r combine-PC1-PC2-loadings}
 #| echo: false
-# Combine label PC loadings for Figure 4A and Figure 4B in the manuscript
+# Combine label PC loadings for Figure 6A and Figure 6B in the manuscript
 PC1_loadings_comb <-
   plot_loadings(flipped_pca_test, pc_no = 1) +
   theme_bw(base_size = 12) +
@@ -1380,9 +1380,9 @@ coordinates_full %>%
 
 @fig-PCA-perceptual-groups then combines the loadings from the label PCA
 with the rotated MDS space to isolate the specific speakers that are
-most associated with the perceptually high and low SES groups (Figure 4C
+most associated with the perceptually high and low SES groups (Figure 6C
 in the manuscript) and the with the perceptually fast/high and slow/low
-groups (Figure 4B in the manuscript).
+groups (Figure 6D in the manuscript).
 
 ```{r map-perceptual-areas}
 #| label: fig-PCA-perceptual-groups
@@ -1544,7 +1544,7 @@ broadness_speed
 ```
 
 Finally, the code chunk below combines @fig-PC1Loadings,
-@fig-PC2Loadings, and @fig-PCA-perceptual-groups to make Figure 4 from
+@fig-PC2Loadings, and @fig-PCA-perceptual-groups to make Figure 6 from
 the manuscript.
 
 ```{r combine-pc-loadings-perceptual-groups}
@@ -1812,7 +1812,7 @@ perceived_broadness_leg1 <-
   ggpubr::get_legend(perceived_broadness, position = "bottom")
 
 # Place legends underneath plot separately
-# Done to improve readability of Figure 7A
+# Done to improve readability of Figure 8A
 
 perceived_broadness_adj <-
   plot_grid(
@@ -2218,7 +2218,7 @@ ggsave(
 )
 
 # Save plot without legend as png
-# For constructing Figure 7
+# For constructing Figure 8
 no_leg <- perceived_speed + theme(legend.position = "none")
 
 ggsave(
@@ -2233,7 +2233,7 @@ ggsave(
 )
 
 # Extract and save legend
-# For constructing Figure 7
+# For constructing Figure 8
 perceived_speed_leg <-
   ggpubr::get_legend(perceived_speed, position = "bottom")
 
@@ -2402,7 +2402,7 @@ perceived_speed +
 
 @fig-space-interpretation interprets the MDS space as a whole, drawing
 on the results of the regression trees predicting D1/D2 and the Label
-PCA (Figure 6C in the manuscript). We can discern four main overlaps in
+PCA (Figure 8C in the manuscript). We can discern four main overlaps in
 speaker production and listener perception:
 
 -   Higher pitch and/or fast speakers are perceived as such, regardless
@@ -2842,8 +2842,8 @@ D1_MainD2_appended2
 
 Some differences emerged in the results predicting Dimension 1 from this
 MDS space and the space reported in @RN003 based on pairwise comparison
-data from the same stimuli. This section contains code for Figures 7 and
-8 from the manuscript, which compare *perceptually high/low SES* and
+data from the same stimuli. This section contains code for Figures 9 and
+10 from the manuscript, which compare *perceptually high/low SES* and
 *perceptually fast/slow* speaker groups (i.e., speakers whose Label PC
 scores are 0.5 SDs above/below the mean) in the reported Free
 Classification MDS space to those in the Pairwise Rating MDS space.
@@ -2911,7 +2911,7 @@ visualisation_df <- regression_df %>%
 
 @fig-compare-leader-laggers-FCPC compares the D1 scores from both
 spaces, using different point types/colours to identify speakers with
-different leader-lagger vowels (Figure 7 in the manuscript). The
+different leader-lagger vowels (Figure 9 in the manuscript). The
 perceptually low SES leaders and perceptually high SES laggers are in
 yellow circles and purple squares, respectively (i.e., perceptually low
 SES laggers and high SES leaders are not indicated). We can see that the
@@ -3048,7 +3048,7 @@ ggsave(
 Similarly, @fig-compare-speed-pitch-FCPC compares D2 from the Free
 Classification on the left and the Pairwise Rating task on the right.
 The figure uses different point types/colours to identify speakers with
-different speed and pitch (Figure 8 from the manuscript). Slow, but
+different speed and pitch (Figure 10 from the manuscript). Slow, but
 high-pitched, speakers are positioned (pink circles) differently across
 the spaces. In the free classification space they are grouped more with
 the other slow speakers (in blue) than with the other higher pitched
