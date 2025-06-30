@@ -1,0 +1,4534 @@
+---
+title: "Exploring the social meaning of the ‘leader-lagger’ vowels in New Zealand English: Supplementary materials"
+author: 
+  - name: Elena Sheard
+    email: elena.sheard@canterbury.ac.nz
+    orcid: 0000-0003-1271-365X
+    affiliations:
+        - ref: nzilbb
+  - name: Jen Hay
+    email: jen.hay@canterbury.ac.nz
+    orcid: 0000-0001-8127-0413
+    affiliations:
+        - ref: nzilbb
+        - ref: uc-ling
+  - name: Robert Fromont
+    email: robert.fromont@canterbury.ac.nz
+    orcid: 0000-0001-5271-5487
+    affiliations:
+        - ref: nzilbb
+  - name:
+      given: Joshua
+      family: Wilson Black
+    email: joshua.black@canterbury.ac.nz
+    orcid: 0000-0002-8272-5763
+    affiliations:
+        - ref: nzilbb
+  - name: Lynn Clark
+    email: lynn.clark@canterbury.ac.nz
+    orcid: 0000-0003-3282-6555
+    affiliations:
+        - ref: nzilbb
+        - ref: uc-ling
+affiliations:
+  - id: nzilbb
+    name: New Zealand Institute of Language, Brain and Behaviour, University of Canterbury
+    city: Christchurch
+    country: New Zealand
+  - id: uc-ling
+    name: Department of Linguistics, University of Canterbury
+    city: Christchurch
+    country: New Zealand
+date: today
+lightbox: auto
+bibliography: 
+  - References2.bib
+  - grateful-refs.bib
+format: 
+  html:
+    embed-resources: true
+    self-contained: true
+    theme: flatly
+    toc: true
+    toc-expand: true
+    toc-location: right
+    smooth-scroll: true
+    code-summary: "Click here to view code."
+    title-block-banner: '#95A044'
+    title-block-banner-colour: white
+    anchor-sections: true
+    number-sections: true
+    cap-location: margin
+    fig-responsive: true
+    lang: 'en-US'
+    execute:
+      warning: false
+    code-fold: true
+  pdf: default
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{css, echo=FALSE}
+.title {
+  color: white;
+}
+```
+
+# Overview
+
+This script contains the supplementary materials for the manuscript
+'Exploring the social meaning of the 'leader-lagger' vowels in New
+Zealand English'. The pre-registration for this analysis can be accessed
+[here](https://aspredicted.org/wny4-7mz2.pdf).
+
+The materials have the following structure:
+
+-   @sec-libraries-and-dataframes loads the R packages and data frames
+    used in the analysis
+
+-   @sec-full-audio-stimuli-and-vowel-stock-take presents transcripts of
+    the audio stimuli used in the pairwise similarity rating task, and a
+    stock take of the monophthongs present in each stimulus.
+
+-   @sec-code-for-reported-results contains the code for the results and
+    figures reported in the manuscript, specifically:
+
+    -   Fitting the reported MDS analysis in @sec-MDS-analysis
+
+    -   Fitting a PCA to connecting MDS dimensions to participant labels
+        in @sec-label-PCA-full
+
+    -   Predicting MDS dimensions in
+        @sec-regression-trees-to-investigate-links-between-perceptual-dimensions-and-acoustic-factors
+
+-   @sec-testing-pre-registered-correlations presents the pre-registered
+    correlations between the MDS dimensions and independent variables.
+
+-   Finally,
+    @sec-the-role-of-the-leader-lagger-continuum-when-listeners-are-explicitly-using-social-labels
+    discusses our data filtering decisions and presents the same
+    analyses applied in @sec-code-for-reported-results to the experiment
+    data filtered according to the pre-registration.
+
+If you would like to see how we scaled participant similarity ratings
+and created the similarity matrices used in this file, please refer to
+the Generate-data-frames.qmd script in the github repository.
+
+# Libraries and dataframes {#sec-libraries-and-dataframes}
+
+The following code chunks load:
+
+1.  Required libraries.
+
+```{r load-libraries}
+# Data manipulation
+library(tidyverse)
+
+# Set theme for visualisations
+theme_set(theme_bw())
+
+# Visualisations
+library(ggcorrplot) # correlations
+library(corrplot) # correlations
+library(cowplot) # function plot_grid
+library(ggpubr) # function ggarrange 
+library(rpart.plot) # visualise regression tree output
+library(gratia) # visualise bam model
+library(magick) # manipulate .png files
+library(ggalt) # gg_encircle function
+library(tidytext) # scale_y_reordered function
+library(factoextra) # visualise label PCA output
+
+# Statistical analyses
+  # MDS 
+library(smacof) # Apply MDS
+library(rsample) # bootstrapping
+library(vegan) # procrustes transformation of MDS
+# Using development version of nzilbb.vowels,
+# Any version after 0.3.1 will work.
+# remotes::install_github('nzilbb/nzilbb_vowels')
+library(nzilbb.vowels) # Assess MDS fit
+
+  # Decision trees
+library(tidymodels) # fit decision trees
+library(parsnip) # fit decision trees and random forests
+library(randomForest) # run random forests
+library(rpart) # run regression trees
+library(vip) # assess importance of predictors in random forests
+
+# Other
+library(here) # localised file paths
+library(knitr)
+library(gt) # html tables when rendering
+library(kableExtra) # html tables when rendering
+library(grateful) # write package citations at end of document
+```
+
+2.  Two similarity matrices from the reported Free Classification task,
+    converted to dissimilarity matrices for MDS analysis. One matrix
+    uses the full, filtered, data. The second matrix uses a subset of
+    the full data; when listeners used explicitly social labels. The
+    values in both matrices represent the proportion of times each
+    stimuli pair were placed in the same group of the times they could
+    have been.
+
+3.  Original groups and labels for each group/speaker, for both the
+    filtered and unfiltered full data set, and the social subset. The
+    latter is used in the descriptive analysis of participant labels.
+
+```{r load-data-frames}
+# Load filtered experimental results
+label_df_full_filtered <- read_rds(
+  here(
+    "Data",
+    "df_full_anon_250228.rds"
+  )
+)
+paste0(
+  "Filtered participant count: ",
+  n_distinct(label_df_full_filtered$workerId)
+)
+
+# Load unfiltered experimental results
+label_df_full_unfiltered <- read_rds(here(
+  "Data",
+  "df_full_unfiltered_anon_250228.rds"
+))
+paste0(
+  "Unfiltered participant count: ",
+  n_distinct(label_df_full_unfiltered$workerId)
+)
+
+# Load experimental results where listeners use social labels only
+label_df_social <- read_rds(here(
+  "Data",
+  "df_social_anon_250228.rds"
+))
+
+# Bring personality and accent types into 'social factors'
+# Bring 'NotSpeechNotSocial' and 'Unsure' (participants explictly being unsure) labels into single 'other' category
+label_df_full_filtered <- label_df_full_filtered %>%
+  mutate(
+    label_category3 = case_when(
+      label_category2 == c("Personality") ~ "SocialFactors",
+      T ~ label_category3
+    ),
+    label_category3 = case_when(
+      label_category3 == c("AccentTypes") ~ "SocialFactors",
+      T ~ label_category3
+    ),
+    label_category3 = case_when(
+      label_category3 == "SocialFactors" ~ "Social",
+      label_category3 == "NotSpeechNotSocial" |
+        label_category3 == "Unsure" ~ "Other",
+      T ~ label_category3
+    )
+  )
+
+label_df_full_unfiltered <- label_df_full_unfiltered %>%
+  mutate(
+    label_category3 = case_when(
+      label_category2 == c("Personality") ~ "SocialFactors",
+      T ~ label_category3
+    ),
+    label_category3 = case_when(
+      label_category3 == c("AccentTypes") ~ "SocialFactors",
+      T ~ label_category3
+    ),
+    label_category3 = case_when(
+      label_category3 == "SocialFactors" ~ "Social",
+      label_category3 == "NotSpeechNotSocial" |
+        label_category3 == "Unsure" ~ "Other",
+      T ~ label_category3
+    )
+  )
+
+# Load social similarity matrix from experimental results.
+# Matrix based on full data set (reported)
+# Generated in Scripts/Matrix-generation-script.qmd
+
+df_full <- read_rds(
+  here(
+    "Data",
+    "similarity_matrix_full_anon_250228.rds"
+  )
+)
+
+# Matrix based on subset of data (only when listeners used social categories)
+# Also generated in Scripts/Matrix-generation-script.qmd
+
+df_social <- read_rds(
+  here(
+    "Data",
+    "similarity_matrix_social_anon_250228.rds"
+  )
+)
+
+# Convert similarity matrices to dissimilarity matrices for MDS.
+df_social <- sim2diss(df_social, method = 1)
+df_full <- sim2diss(df_full, method = 1)
+```
+
+4.  The similarity matrix from the Pairwise comparison task reported in
+    @RN003, converted to a dissimilarity matrix for MDS analysis.
+    Pairwise similarity ratings were scaled per participant, and the
+    values in this matrix are the mean value, for each stimuli pair, of
+    the scaled ratings. Please refer to
+    [this](https://github.com/nzilbb/qb-pairwise-public) GitHub
+    repository for data and scripts used to generated this matrix.
+
+```{r load-PC-data}
+# Generated in separate GitHub repository
+  # Scaled pairwise ratings
+
+matrix_scaled <- read_rds(
+  here(
+    "Data",
+    "PW_matrix_scaled_anon_250124.rds"
+  )
+)
+
+# Convert to dissimilarities for MDS.
+df_PC <- sim2diss(matrix_scaled, method = "reverse")
+```
+
+5.  Additional data frames used in the analysis, specifically:
+
+    -   QB1 PCA scores
+
+    -   Measurements of articulation rate and pitch
+
+```{r load-additional-dfs}
+# Load additional acoustic measures (PC loadings, GAMM intercepts, mean F1/F2, articulation rate, pitch)
+QB1_scores_38 <- read_rds(here("Data",
+                               "QB1_Scores_38_anon_250228.rds"))
+
+# Calculate proportion of stimuli consisting of pause and duration
+QB1_scores_38 <- QB1_scores_38 %>%
+  mutate(
+    pause_total = stimulus_duration - phonation_total,
+    phonation_prop = phonation_total / stimulus_duration * 100,
+    pause_prop = 100 - phonation_prop
+  ) %>%
+  mutate(PC1_swapped = PC1 * (-1),
+         SpeakerID = as.character(SpeakerID))
+
+# Mean normalised F1/F2 for whole monologue, outliers not removed
+# For visualising example vowel spaces
+QB1_vowels_mean <-
+  read_rds(here("Data", "QB1_vowels_mean.rds"))
+
+# Load vowel counts for audio stimuli
+VowelCount <- read_rds(here("Data",
+                            "StimuliVowelFrequency_anon.rds"))
+
+VowelCount <- VowelCount %>%
+  filter(!is.na(dress_E))
+```
+
+## Session information and additional functions
+
+::: {.callout-info collapse="true"}
+### Session information
+
+Here are the full details of system and packages used to run this
+analysis:
+
+```{r session-info}
+sessionInfo()
+```
+:::
+
+The code chunk below contains a custom function that creates a new
+column indicating whether a value in a specified column is above, below,
+or in between, a specified standard deviation, and applies a label to
+each of the three categories.
+
+```{r SD-function}
+
+# Function to classify numeric variable as categorically low, middle or high in distribution
+# based on SD (value)
+sd_calculate <- function(orig_column, value, options) {
+  new_column <- case_when(
+    {{ orig_column }} > mean({{ orig_column }}, na.rm = TRUE) +
+      value * sd({{ orig_column }}, na.rm = TRUE) ~ options[3],
+    {{ orig_column }} < mean({{ orig_column }}, na.rm = TRUE) -
+      value * sd({{ orig_column }}, na.rm = TRUE) ~ options[1],
+    TRUE ~ options[2]
+  )
+}
+```
+
+The code chunk below contains a custom function that creates a
+correlogram in which the values in the bottom diagonal of the
+correlogram represent the correlation coefficients, and the values in
+the upper diagonal represent the p-values.
+
+```{r correlogram-function}
+correlogram_function <- function(in_data) {
+  data_matrix <- as.matrix(in_data)
+
+  pmat <- cor.mtest(data_matrix, method = "spearman")
+  pvalues <- pmat$p
+  pvalues[upper.tri(pvalues)] <- NA
+
+  pvalues_long <- pvalues %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("Variable1") %>%
+    gather("Variable2", "value", -Variable1) %>%
+    mutate(
+      value = round(value, digit = 1),
+      value = case_when(Variable1 == Variable2 ~ NA, T ~ value)
+    )
+
+  test <- cor(data_matrix, method = "spearman")
+  corr_coeff <- test
+  corr_coeff[lower.tri(corr_coeff)] <- NA
+
+  corr_coeff_long <- corr_coeff %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("Variable1") %>%
+    gather("Variable2", "value", -Variable1) %>%
+    mutate(
+      value = round(value, digit = 1),
+      value = case_when(Variable1 == Variable2 ~ NA, T ~ value),
+      value = gsub("0.", ".", value)
+    )
+
+  correlogram_plot <- ggcorrplot(
+    test,
+    p.mat = pmat$p,
+    sig.level = 0.05,
+    insig = "pch",
+    pch = "",
+    method = "square",
+    outline = T,
+    type = "full",
+    #  lab = TRUE,
+    # digits = 1,
+    show.diag = T,
+    ggtheme = ggplot2::theme_bw,
+    # lab_size = 2 #,
+    # tl.srt = 90
+  )
+
+  x_labs <- ggplot_build(
+    correlogram_plot
+  )$layout$panel_params[[1]]$x$get_labels()
+
+  correlogram_plot <- correlogram_plot +
+    scale_y_discrete(limits = rev) +
+    scale_x_discrete(position = "top", labels = x_labs) +
+    theme(axis.text.x = element_text(angle = 60, hjust = -0.05)) +
+    geom_text(
+      aes(
+        x = pvalues_long$Variable1,
+        y = pvalues_long$Variable2,
+        label = pvalues_long$value
+      ),
+      size = 2,
+      fontface = "bold"
+    ) +
+    geom_text(
+      aes(
+        x = corr_coeff_long$Variable1,
+        y = corr_coeff_long$Variable2,
+        label = corr_coeff_long$value
+      ),
+      size = 2
+    )
+
+  correlogram_plot
+}
+
+```
+
+# Full audio stimuli and vowel stock take {#sec-full-audio-stimuli-and-vowel-stock-take}
+
+@tbl-vowel-stocktake displays the transcriptions for the 38 audio
+stimuli used in the online task. The table indicates whether each of the
+10 NZE monophthongs considered in @RN506 is present in the stimuli (1 =
+present, 0 = absent). The table also counts the total number of
+monophthongs represented in each stimulus (e.g., a 5 indicates 5 of the
+10 monophthongs are present in a stimulus) and the total number of
+stimuli in which each monophthong is represented. We can see from the
+table that at least 6 of the 10 monophthongs are present in each
+stimuli, with a median of 8 per stimulus, and an average of 8.13
+(@tbl-vowel-mean-median ). The vowels from the leader-lagger continuum
+are also more reliably represented than the vowels in the back-vowel
+configuration, largely due to the under-representation of the
+[start]{.smallcaps} vowel across the stimuli. We also note the
+[strut]{.smallcaps} F1 is loaded onto the leader-lagger continuum while
+[strut]{.smallcaps} F2 is loaded onto the back vowel configuration.
+
+```{r vowel-count}
+#| echo: false
+#| label: tbl-vowel-stocktake
+#| tbl-cap: "Stimuli transcripts and vowel counts"
+
+VowelCount %>%
+  rename(
+    Stimulus = transcript,
+    DRESS = dress_E,
+    LOT = lot_Q,
+    NURSE = nurse_3,
+    FLEECE = fleece_i,
+    KIT = kit_I,
+    TRAP = trap_.,
+    START = start_.,
+    THOUGHT = thought_.,
+    STRUT = strut_V,
+    GOOSE = goose_u
+  ) %>%
+  select(
+    speakerId,
+    Stimulus,
+    TRAP,
+    DRESS,
+    KIT,
+    FLEECE,
+    NURSE,
+    STRUT,
+    GOOSE,
+    LOT,
+    THOUGHT,
+    START,
+    Total
+  ) %>%
+  kable() %>%
+  scroll_box(width = "750px", height = "250px") %>%
+  kable_styling(
+    bootstrap_options = "bordered",
+    position = "center",
+    font_size = 10
+  )  %>%
+  add_header_above(c(" ", "", "Leader-Lagger" = 7, "Back Vowel" = 3, ""))
+
+```
+
+```{r summarise-vowel-count}
+#| label: tbl-vowel-mean-median
+#| tbl-cap: "Mean and median presence of monophthongs in audio stimuli"
+VowelCount %>% 
+  filter(!is.na(Total)) %>% 
+  summarise(MeanCount = mean(Total),
+            MedianCount = median(Total)) %>% 
+    kable() 
+```
+
+# Code for reported results {#sec-code-for-reported-results}
+
+## Participant labels
+
+The code chunk below contains the code for @tbl-category-stats, which
+displays the mean, median and ranges for both the number of groups made
+by participants, and the number of broad label categories used to
+describe these groups (*Social*, *Speech* or *Other*, see the third
+column of Table 1 in the manuscript). The subsequent chunk contains the
+code from @fig-label-distribution, which informs the discussion in
+Section 4.1 of the manuscript. Note that this analysis uses the
+unfiltered data.
+
+```{r count-labels-used}
+#| label: tbl-category-stats
+#| tbl-cap: |
+#|     Mean, median and range of the number of groups made by participants, and
+#|     the broad label categories used to describe them.
+
+groups <- label_df_full_unfiltered %>%
+  mutate(trial_index = as.factor(trial_index)) %>%
+  group_by(workerId, trial_index) %>%
+  # count number of groups made per participant and iteration
+  summarise(individual_label_count = n_distinct(ratings)) %>%
+  ungroup() %>%
+  summarise(
+    `Measure` = "Groups made",
+    Mean = mean(individual_label_count),
+    Median = median(individual_label_count),
+    Range = max(individual_label_count) - min(individual_label_count)
+  )
+
+broad_cats <-label_df_full_unfiltered %>% 
+  mutate(trial_index = as.factor(trial_index)) %>%
+  group_by(workerId, trial_index) %>%
+  summarise(
+# count number of broad categories used per participant and iteration
+    broad_label_count = n_distinct(label_category3)
+  ) %>%  ungroup() %>% 
+  summarise(
+    `Measure` = "Broad label categories used",
+    Mean = mean(broad_label_count),
+    Median = median(broad_label_count),
+    Range = max(broad_label_count) - min(broad_label_count)
+  ) 
+
+# Create table with kable
+groups %>% 
+  rbind(broad_cats) %>%
+  kable() %>%
+  kable_styling(
+    bootstrap_options = "bordered",
+    position = "center",
+    font_size = 10
+  )
+```
+
+```{r label-stats-figs}
+#| label: fig-label-use
+#| fig-cap: |
+#|     Distribution of (A) the proportion of total labels from each broad label category
+#|      (B) the number of unique groups participants made across each iteration of the task, (C) the number of broad label categories participants used to label speaker groups across each iteration of the task
+
+# Show number of different participants who used a certain label category
+group_numbers <-  label_df_full_unfiltered %>%
+  mutate(total_label_n = n()) %>%
+  group_by(label_category3) %>%
+  reframe(category_count = n(),
+          category_prop = category_count / total_label_n * 100) %>%
+  distinct() %>%
+  ungroup() %>%
+  arrange(category_prop) %>%
+  mutate(label_category3 = factor(label_category3, levels = label_category3)) %>%
+  ggplot(aes(x = label_category3, y = category_prop)) +
+  geom_segment(aes(xend = label_category3, yend = 0)) +
+  geom_point(size = 7, color = "orange") +
+  theme_bw(base_size = 12) +
+  labs(x = "Broad label category",
+       y = "Proportion of labels (%)",
+       title = "A") +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      vjust = 1,
+      hjust = 1
+  )) +
+  label_df_full_unfiltered %>%
+  mutate(trial_index = as.factor(trial_index)) %>%
+  group_by(workerId, trial_index) %>%
+  summarise(
+    individual_label_count = n_distinct(ratings),
+    broad_label_count = n_distinct(label_category3)
+  ) %>%
+  ggplot(aes(y = individual_label_count, x = trial_index)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.5) +
+  labs(x = "Iteration",
+       y = "Number of groups made",
+       title = "B") +
+  theme_bw(base_size = 12) +
+  label_df_full_unfiltered %>%
+  mutate(trial_index = as.factor(trial_index)) %>%
+  group_by(workerId, trial_index) %>%
+  summarise(
+    individual_label_count = n_distinct(ratings),
+    broad_label_count = n_distinct(label_category3)
+  ) %>%
+  ggplot(aes(y = broad_label_count, x = trial_index)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.5) +
+  labs(x = "Iteration",
+       y = "Number of broad label categories used",
+       title = "C") +
+  theme_bw(base_size = 12)
+group_numbers
+```
+
+```{r manuscript-fig-1}
+#| label: fig-label-distribution
+#| fig-cap: |
+#|        The number of participants who used each specific label category (Manuscript Figure 4).
+
+prop_label_fig <- label_df_full_unfiltered %>%
+  mutate(
+    label_category3 = case_when(
+      label_category3 == "SocialFactors" ~ "Social",
+      label_category3 == "NotSpeechNotSocial" |
+        label_category3 == "Unsure" ~ "Other",
+      T ~ label_category3
+    )
+  ) %>%
+  group_by(label_category3, label_category2, label_category1) %>%
+  summarise(count = n_distinct(workerId)) %>%
+  group_by(label_category2) %>%
+  arrange(desc(count), .by_group = TRUE) %>%
+  mutate(label_category3 = factor(label_category3, levels = c("Speech", "Social", "Other"))) %>%
+  ggplot(aes(
+    x = count,
+    y = reorder_within(label_category1, count, label_category3)
+  )) +
+  geom_col(aes(fill = label_category2), colour = "black") +
+  facet_wrap( ~ label_category3, scales = "free_y", nrow = 1) +
+  scale_y_reordered() +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "none") +
+  labs(y = "Label Category", x = "Number of participants")
+
+# Save as png
+ggsave(
+  prop_label_fig,
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "Figure4.png",
+  width = 3500,
+  height = 1500,
+  units = "px"
+)
+
+# Save as svg
+ggsave(
+  prop_label_fig,
+  path = here("Figures", "Plots", "SVG"),
+  dpi = 600,
+  filename = "Figure4.svg",
+  units = "in",
+  height = 3.5
+)
+
+prop_label_fig
+
+```
+
+## Fitting the reported MDS {#sec-MDS-analysis}
+
+Multi-dimensional scaling (MDS) is a dimension-reduction technique for
+similarity data used in multiple fields (e.g. psychology, marketing),
+with some implementation in linguistics [e.g., @RN586; @RN589]. MDS
+reduces measures of (dis)similarity between pairs of objects to a
+smaller number of perceptual dimensions which, taken together,
+theoretically correspond to the cues or factors driving their perceived
+similarity (e.g., pitch, vowel patterns). We specifically implemented a
+monotone spline (M-spline) MDS, with five knots and third degree
+polynomials.[^1]
+
+[^1]: Our preregistration specifies a 'non-metric' MDS. This typically
+    means an ordinal MDS, but M-splines are also non-metric.
+
+MDS requires a dissimilarity matrix as input. For convenience, we first
+generated a square matrix which represents the similarity between each
+pair of speakers obtained from our experimental data. Each cell
+represents the number of times stimuli from two speakers *were* placed
+in the same group, in proportion to the number of times they *could*
+have been placed in the same group (stimuli were randomly distributed
+across three iterations of task, so not all participants grouped all the
+same stimuli). The similarity matrix was then converted to a
+dissimilarity matrix by subtracting each proportion from 1.
+
+### Determine number of dimensions
+
+We now have a data frame for MDS. However, the number of dimensions we
+want must be specified in advance. A conventional approach is to use
+stress, a measure of fit (lower stress = better fit). However, because
+the addition of dimensions to an MDS analysis *always* reduces 'stress'
+(i.e., 3 dimensions will always have lower stress than 2 dimensions, and
+so on), directly choosing the number of dimensions from single stress
+values is a blunt tool and not considered best practice [see @RN620].
+
+Here, we introduce a new method to inform the choice of the number of
+dimensions based on stress. This method is analogous to the permutation
+and bootstrapping approach developed by @RN002 and applied to vocalic
+co-variation by @RN603. We implemented this method via a custom function
+in R in the `nzilbb.vowels` package. We want to ensure that we do not
+underestimate the dimensionality of the perceptual space. That is, we
+want to make sure we don't set the dimensionality *too low*. In order to
+set a minimum number of dimensions we compare the stress reduction we
+would expect from permuted versions of our experimental data and for
+bootstrapped versions. We ensure that we have at least those dimensions
+which result in greater stress reduction than in permuted data.
+
+```{r bootstrap-mds}
+#| label: fig-mds-dim
+#| fig.cap: |
+#|   Boxplots depict stress reduction as additional dimensions are added for
+#|   bootstrapped samples (red) and permuted samples (blue). Stress reduction in
+#|   the experimental data is depicted by black crosses.
+   
+set.seed(10)
+
+full_test <- mds_test(
+  df_full,
+  n_boots = 100,
+  n_perms = 100,
+  test_dimensions = 5,
+  mds_type = "mspline",
+  spline_degree = 3,
+  spline_int_knots = 5
+)
+
+plot_mds_test(full_test)
+```
+
+@fig-mds-dim suggests we need at least one dimension, with the black
+cross sitting somewhat higher than the null distribution for two
+dimensions. As previously noted, this test helps to convince us that we
+aren't including *too few* dimensions.
+
+### Selecting best-fitting 2D analysis using random start values {#sec-random-start-full}
+
+The code chunk below uses our dissimilarity matrix to run 100 MDS
+analyses with random starts (M-spline MDS analyses, with five knots and
+third degree polynomials). The two-dimensional MDS analysis reported in
+the manuscript is the random start solution with the lowest stress value
+from these 100 runs. This step is motivated by @RN620, who note that
+there are many local minima for stress when fitting MDS.
+
+```{r best-random-start}
+
+set.seed(765)
+fit_df_full <- NULL
+
+for (i in 1:100)
+  fit_df_full[[i]] <- smacofSym(
+    df_full,
+    ndim = 2,
+    type = "mspline",
+    principal = T,
+    init = "random",
+    spline.degree = 3,
+    spline.intKnots = 5,
+    itmax = 2000
+  )
+
+ind <- which.min(sapply(fit_df_full, function(x)
+  x$stress))
+fit_df_full <- fit_df_full[[ind]]
+fit_df_full
+```
+
+### Informal significance test assessing fit of final MDS
+
+The informal significance test in @fig-significanceTest gives an
+indication of the fit of the final MDS. The *permtest* function from the
+`smacof` package calculates the stress for 500 permuted iterations of
+the data frame, and the figure below visualises the distribution of the
+stress values across these iterations. The dotted line represents the
+lower 5% quantile, while the solid line represents the actual stress
+value of our final MDS analysis. The actual stress value is lower than
+the solid line, indicating that the stress of the actual MDS analysis is
+lower than over 95% of the analyses run on the permuted data.
+
+```{r}
+#| label: fig-significanceTest
+#| fig.cap: |
+#|   Stress values from 500 permuted iterations of MDS with 5% quintile (dashed 
+#|   line) and actual stress value of final MDS (solid line)
+
+set.seed(100)
+nrep <- 500
+res.perm_full <- permtest(
+  fit_df_full,
+  data = df_full,
+  method.dat = "maximum",
+  nrep = nrep,
+  verbose = FALSE
+)
+
+# permutation stress norm
+mperm <- mean(res.perm_full$stressvec) 
+
+# lower 5% quantile (critical value)
+perm5 <- quantile(res.perm_full$stressvec, probs = 0.05) 
+
+hist(
+  res.perm_full$stressvec,
+  xlim = c(0.10, 0.40),
+  xlab = "Stress Values",
+  main = "Permutation Histogram"
+)
+abline(v = perm5, lty = 2) # critical value (dashed)
+abline(v = fit_df_full$stress)
+```
+
+The combination of @fig-significanceTest and @fig-mds-dim provides
+sufficient evidence for us to proceed with a two-dimensional MDS
+analysis.
+
+### Extracing speaker scores
+
+We now extract the position of each speaker in the MDS space and join
+them with production information from the QuakeBox corpus.
+
+```{r MDS-scores}
+# Extract the scores for each speaker.
+conf_full <- fit_df_full$conf
+dimensions_full <- as.data.frame(conf_full) %>%
+  rename(D1_full = V1, D2_full = V2) %>%
+  rownames_to_column(var = "Speaker")
+
+# Join extracted scores with other data frames
+QB1_scores_38 <- QB1_scores_38 %>%
+  right_join(dimensions_full, by = c("SpeakerID" = "Speaker"))
+
+label_df_social2 <- label_df_social %>%
+  mutate(SpeakerID = as.character(SpeakerID)) %>%
+  right_join(dimensions_full, by = c("SpeakerID" = "Speaker"))
+```
+
+The MDS scores for each speaker can be mapped in the two specified
+dimensions (see @fig-MDSOutput). Stimuli which are close to one another
+in the 2D space are perceived to sound more similar to one another than
+those which are further apart.
+
+```{r}
+#| label: fig-MDSOutput
+#| fig-cap: "Output coordinates for each speaker from the MDS analysis"
+ 
+QB1_scores_38 %>%
+  ggplot(aes(x = D1_full, y = D2_full)) +
+  geom_label(aes(label = SpeakerID)) +
+  theme_bw() +
+  labs(y = "Dimension 2 (D2)",
+       x = "Dimension 1 (D1)") +
+  coord_fixed() 
+```
+
+### Rotating the MDS space to align with the airwise Rating space
+
+The only thing which is important about this MDS space is the relative
+distance between the speakers. The specific dimensions of the space are
+arbitrary. While it is possible that stimuli D1 or D2 scores would
+directly align with a given feature in production, or with a different
+MDS space generated from a other data, this is not guaranteed. As we
+would like to compare the results of this analysis to those of @RN003,
+we can ensure that the MDS spaces are maximally comparable by rotating
+and scaling our MDS scores to maximally align the two spaces (i.e. we
+apply Procrustes rotation).
+
+The code chunk below generates the same best fitting MDS analysis
+reported in @RN003
+
+```{r pairwise-data-MDS}
+set.seed(200)
+fit_df_PC <- NULL
+for (i in 1:100)
+  fit_df_PC[[i]] <- smacofSym(
+    df_PC,
+    ndim = 2,
+    type = "mspline",
+    principal = T,
+    init = "random",
+    spline.degree = 3,
+    spline.intKnots = 5,
+    itmax = 2000
+  )
+ind <- which.min(sapply(fit_df_PC, function(x)
+  x$stress))
+fit_df_PC <- fit_df_PC[[ind]]
+```
+
+We extract the MDS scores and join with the QB data.
+
+```{r extract-MDS-scores}
+conf_PC_ID <- fit_df_PC$conf
+dimensions_PW <- as.data.frame(conf_PC_ID) %>%
+  rename(D1_PW = V1, D2_PW = V2) %>%
+  rownames_to_column(var = "Speaker")
+
+# Join extracted scores with other data
+QB1_scores_38 <- QB1_scores_38 %>%
+  right_join(dimensions_PW, by = c("SpeakerID" = "Speaker"))
+```
+
+We now use the `procrustes` function from the `vegan` package to rotate
+the space from the Free Classification task to be maximally similar to
+the space form the Pairwise ratings task.
+
+```{r rotate-to-align-MDS}
+fit_FC_rotated <- procrustes(fit_df_PC$conf,
+                             fit_df_full$conf,
+                             scores = "sites")
+```
+
+We now extract the *rotated* scores and join them to the QB data.
+
+```{r extract-rotated-scores}
+rotated_FC <- fit_FC_rotated$Yrot %>%
+  as_tibble(.name_repair = "unique") %>%
+  rename(Rotated_D1_FC = `...1`,
+         Rotated_D2_FC = `...2`)
+
+FC_dimensions <- dimensions_full %>%
+  select(-Speaker)
+
+QB1_scores_38 <- QB1_scores_38 %>%
+  bind_cols(rotated_FC)
+```
+
+The next chunk visualises the transformation of the Free Classification
+space to align with the Pairwise Comparison space, which is effectively
+a reversal of the horizontal axis (@fig-MDSOutput-transform).
+
+```{r rotate-figure}
+#| label: fig-MDSOutput-transform
+#| fig-cap: | 
+#|   Procrustes rotation of Free Classification space to align with Pairwise
+#|   Comparison space (reversal of x-axis and small rotation).
+ 
+rotation_1 <- QB1_scores_38 %>% 
+  ggplot(
+    aes(
+      x = D1_full,
+      y = D2_full,
+      xend = Rotated_D1_FC,
+      yend = Rotated_D2_FC,
+    )
+  ) +
+  geom_point(size=2) +
+  geom_segment(arrow = arrow(length = unit(2, "mm"))) +
+  labs(x="Dimension 1", y = "Dimension 2") +
+  coord_fixed() +
+    theme_bw()+
+  theme(legend.position="none")
+rotation_1
+```
+
+We now put the two spaces side by side in @fig-MDSOutput-rotate-compare
+(Figure 5 in the manuscript).
+
+```{r compare-MDS-spaces}
+#| label: fig-MDSOutput-rotate-compare
+#| fig-cap: |
+#|   Compare the rotated Free Classification spaces to the 
+#|   Pairwise Comparison space
+PC_space <- QB1_scores_38 %>%
+  ggplot(aes(x = D1_PW, y = D2_PW)) +
+  geom_label(aes(label = SpeakerID), size = 3) +
+  theme_bw() +
+  labs(y = "Dimension 2 (D2)",
+       x = "Dimension 1 (D1)",
+       title = "PW space (Sheard et al.)",
+       tag = "A") +
+  coord_fixed()
+
+FC_orig <- QB1_scores_38 %>%
+  ggplot(aes(x = D1_full, y = D2_full)) +
+  geom_label(aes(label = SpeakerID)) +
+  theme_bw() +
+  labs(y = "Dimension 2 (D2)",
+       x = "Dimension 1 (D1)",
+       title = "Original FC space",
+       tag = "A") +
+  coord_fixed() 
+
+FC_procrustes <- QB1_scores_38 %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_label(aes(label = SpeakerID), size = 3) +
+  theme_bw() +
+  labs(y = "Dimension 2 (D2)",
+       x = "Dimension 1 (D1)",
+       title = "Free Classification") +
+  coord_fixed()
+
+PC_space + FC_procrustes + plot_annotation(tag_levels = "A")
+
+```
+
+```{r save-rotated-mds-png}
+ggsave(
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "Figure5.png",
+  width = 2500,
+  height = 1500,
+  units = "px"
+)
+
+ggsave(
+  path = here("Figures", "Plots", "SVG"),
+  dpi = 300,
+  filename = "Figure5.svg",
+  # width = 5.5,
+  height = 3.5,
+  units = "in"
+)
+```
+
+### Testing correlations between D1 and D2 scores from the Pairwise Rating and Free Classification spaces
+
+The code chunk below tests a Pearson's correlation between (i) D1 scores
+from the Pairwise Rating MDS space in @fig-MDSOutput-rotate-compare A
+and rotated D1 scores from the Free Classification space in
+@fig-MDSOutput-rotate-compare B and (ii) D2 scores from the Pairwise
+Rating MDS space in @fig-MDSOutput-rotate-compare A and rotated D2
+scores from the Free Classification space in
+@fig-MDSOutput-rotate-compare B.
+
+The correlation tests reveal a robust positive correlation between
+scores from both dimensions. From this, we can conclude that the
+Procrustes rotation has been effective in maximizing the similarity
+between the two spaces. We can also infer that the perceptual similarity
+spaces from the two tasks are indeed similar despite the different
+experimental mechanics. Section @sec-comparing-spaces-across-tasks
+explores the similarities between the two perceptual spaces in more
+detail.
+
+```{r D1-D2-PW-FC-correlations}
+cor.test(QB1_scores_38$D1_PW, QB1_scores_38$Rotated_D1_FC, method = "pearson")
+cor.test(QB1_scores_38$D2_PW, QB1_scores_38$Rotated_D2_FC, method = "pearson")
+```
+
+## PCA to determine relationships between MDS dimensions and labels {#sec-label-PCA-full}
+
+We now have our rotated perceptual similarity space, but what does it
+mean? We begin by exploring whether each dimension is interpretable. MDS
+as a technique is designed for similarity data, but it doesn't tell you
+what the drivers of the similarity are. It's left to researchers to
+identify what the underlying structure might be. Fortunately for us, we
+have our group labels! So the question for us is: as dimension scores
+change, which label categories correspondingly increase or decrease?
+
+Speakers used so many different labels that differentiating between them
+quickly gets complex. To see which label categories also increase or
+decrease as D1/D2 scores increase or decrease, we implemented Principal
+Component Analysis (PCA). In this PCA the input data were D1/D2 scores
+and the proportion each social Level 1 label category (the most
+specific) was used to describe each stimuli (categories used by \<10% of
+participants were excluded). To give an idea of what the data looks
+like, each row in @tbl-PCA-data represents six of the 38 stimuli. Each
+column corresponds to a Level 1 social label categories, with each value
+representing the proportion that a given label category was used to
+describe that stimulus.
+
+```{r PCA-data-wrangling}
+# I filtered out labels used by less than 10% of participants
+# Then with the remaining labels calculated the proportion of labels for each participant that were from a particular category (e.g., 25% of their social labels referred to 'low SES')
+
+label_test_full <- label_df_full_filtered %>%
+  mutate(SpeakerID = as.character(SpeakerID)) %>%
+  group_by(label_category1) %>%
+  mutate(nParticipant = n_distinct(workerId)) %>%
+  filter(nParticipant >= 12) %>%
+  group_by(SpeakerID) %>%
+  mutate(ParticipantTotal = n_distinct(workerId)) %>%
+  group_by(SpeakerID, label_category1) %>%
+  summarise(label_count = n(),
+            label_prop = label_count / first(ParticipantTotal) * 100) %>%
+  ungroup() %>%
+  select(SpeakerID, label_category1, label_prop) %>%
+  distinct() %>%
+  pivot_wider(id_cols = SpeakerID,
+              names_from = label_category1,
+              values_from = label_prop)
+
+# The 0 is for NAs where a category wasn't used at all for a speaker (i.e., 0% of their labels refer to a particular category)
+label_test_full[is.na(label_test_full)] <- 0
+label_names <- label_test_full %>%
+  select(-SpeakerID) %>%
+  colnames()
+
+label_PCA_full <- label_test_full %>%
+  right_join(QB1_scores_38, "SpeakerID") %>%
+  ungroup() %>%
+  select(all_of(label_names),
+         Rotated_D1_FC,
+         Rotated_D2_FC)
+
+speaker <- label_test_full %>%
+  right_join(QB1_scores_38, "SpeakerID") %>%
+  ungroup() %>%
+  select(SpeakerID)
+```
+
+```{r label-PCA-data}
+#| echo: false
+#| label: tbl-PCA-data
+#| tbl-cap: "First six entries of data frame used in the label PCA"
+ 
+kable(head(label_PCA_full),
+      digits = 2,
+      padding = 0) %>%
+  scroll_box(width = "750px") %>%
+  kable_styling(
+    bootstrap_options = "bordered",
+    full_width = F,
+    position = "center",
+    font_size = 8
+  )
+```
+
+### Determining the number of Principal Components
+
+While Principal Component Analysis does not require researchers to
+specify the number of dimensions in advance, we do need to decide how
+many principal components should be considered in the interpretation of
+its results. As such, we again use a permutation and bootstrapping
+procedure that compares the variance explained by each PC in
+bootstrapped versus randomised data [see @RN603 for more information on
+this method and how to read the charts in this section].
+@fig-varianceExpl shows that the variance explained by the principal
+components from PC3 onwards for the bootstrapped data (red, with the
+dots indicating values obtained from the full data set) do not explain
+more variance than would be explained by chance (blue). As with the MDS,
+we decide to stick with two Principal Components.
+
+```{r}
+#| label: fig-varianceExpl
+#| fig.cap: |
+#|   Estimated 95% confidence intervals on the randomised (null) distribution 
+#|   and bootstrapped (sampling) distribution of variance explained by each
+#|   Principal component
+PCA_full <- prcomp(label_PCA_full, scale = T)
+
+PCA_test_full <- pca_test(
+  label_PCA_full,
+  n = 1000,
+  variance_confint = 0.95,
+  loadings_confint = 0.9
+)
+
+plot_variance_explained(PCA_test_full)
+```
+
+```{r flip-PCs}
+
+# flip the first PC (pca_test)
+flipped_pca_test <-
+  pc_flip(PCA_test_full, pc_no = 1, flip_var = "NZRural")
+# flip the second PC (pca_test)
+flipped_pca_test <-
+  pc_flip(flipped_pca_test, pc_no = 2, flip_var = "SlowerSpeech")
+
+# flip the first PC (prcomp)
+flipped_pca <- pc_flip(PCA_full, pc_no = 1, flip_var = "NZRural")
+# flip the second PC (prcomp)
+flipped_pca <-
+  pc_flip(flipped_pca, pc_no = 2, flip_var = "SlowerSpeech")
+```
+
+### Labels and dimensions loaded onto PC1:
+
+@fig-PC1Loadings depicts the variables loaded onto PC1 from the label
+PCA (Figure 4A in the manuscript). A '**+**' indicates that a variable
+is **positively** loaded on the PC (as PC1 score increases, the value of
+the variable increases). A '**-**' indicates that label category is
+**negatively** loaded on the PC (as PC1 score increases, value of that
+variable decreases). The figure also represents the estimated
+randomised/permuted (blue) and bootstrapped (red) distribution of the
+loadings for each variable. If an index loading (+/- sign) falls above
+the 90% confidence band for the null distribution (i.e., above the blue
+line), then we consider it meaningfully captured by the PC.
+
+```{r}
+#| label: fig-PC1Loadings
+#| fig.cap: |
+#|   Estimated randomised (Null) and bootstrapped (sampling) distribution for 
+#|   index loadings of Principal Component 1 (PC1) after 1000 iterations, with 
+#|   sign of loadings indicated by ‘+’ or ‘−’.
+
+PC1_loadings <- plot_loadings(flipped_pca_test, pc_no = 1) +
+  theme_bw(base_size = 12) +
+  labs(x = "Labels associated with D1") +
+  theme(
+    plot.title = element_blank(),
+    plot.subtitle = element_blank())
+PC1_loadings <- PC1_loadings + theme(legend.position = 'none')
+PC1_loadings
+```
+
+D1 (Rotated_D1_FC, with FC referring to the Free Classification task) is
+loaded onto PC1, along with the labels *NZ Rural (accent)*, *Strong NZ
+(accent)*, *Low*, *Middle* and *High Socioeconomic status* (SES), and
+*Clear articulation*, *Quiet*, and *Creaky* as the most strongly loaded
+speech-related labels. *Young*, *Distinct Vowels* and *NZ Average* also
+meet our 90% confidence band level threshold. The loadings indicate
+that, as stimuli D1 scores increase, use of *High* and *Middle SES*
+labels decreases and use of *Low SES* labels and *rural* labels
+increases. Dimension 1 from the MDS therefore appears to primarily
+capture perceived **social class** and **accent** **broadness**.
+
+### Labels and dimensions loaded onto PC2
+
+@fig-PC2Loadings is the same as @fig-PC1Loadings except it depicts the
+variables loaded onto PC2 from the label PCA (Figure 4B in the
+manuscript).
+
+```{r}
+#| label: fig-PC2Loadings
+#| fig.cap: |
+#|   Estimated randomised (Null) and bootstrapped (Sampling) distribution for 
+#|   index loadings of Principal Component 2 (PC2) after 1000 iterations, with 
+#|   sign of loadings indicated by ‘+’ or ‘−’.
+PC2_loadings <- plot_loadings(flipped_pca_test, pc_no = 2) +
+  theme_bw(base_size = 12) +
+  labs(x = "Labels associated with D2") +
+  theme(plot.title = element_blank(),
+        plot.subtitle = element_blank())
+
+PC2_loadings <- PC2_loadings + theme(legend.position = 'none')
+PC2_loadings
+```
+
+D2 (Rotated_D2_FC) is loaded onto PC2, with the labels *Fast Speech*,
+*Slower Speech*, *Low*, *Medium* and *High* pitch, and *Old*, *NZ Proper
+(accent)* and *Flat tone* also meeting our 90% confidence band level
+threshold.[^2] As D2 scores increase, uses of *Slow* and *Low Pitch*
+labels increase. As D2 scores decrease, uses of *Fast* and *High/Middle
+pitch* labels increase. Dimension 2 from the MDS analysis therefore
+appears to capture perceived **speed** and **pitch**.
+
+[^2]: Note that the confidence bands for `NZProper` through
+    `MediumPitch` are very wide, indicating that the association of
+    these variables with D2 is unlikely to hold for a different sample.
+
+```{r combine-PC1-PC2-loadings}
+#| echo: false
+# Combine label PC loadings for Figure 4A and Figure 4B in the manuscript
+PC1_loadings_comb <-
+  plot_loadings(flipped_pca_test, pc_no = 1) +
+  theme_bw(base_size = 12) +
+  theme(plot.title = element_blank(),
+        plot.subtitle = element_blank())
+PC2_loadings_comb <-
+  plot_loadings(flipped_pca_test, pc_no = 2) +
+  theme_bw(base_size = 12) +
+  theme(plot.title = element_blank(),
+        plot.subtitle = element_blank())
+
+shared_loadings <-
+  ggarrange(
+    PC1_loadings_comb,
+    PC2_loadings_comb,
+    ncol = 2,
+    nrow = 1,
+    common.legend = TRUE,
+    legend = "top",
+    labels = "AUTO"
+  )
+
+# Save png
+ggsave(
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 400,
+  filename = "PCALoadings.png",
+  width = 6,
+  height = 6
+)
+```
+
+We extract scores from the label PCA and join with the QB data.
+
+```{r combine-scores-data}
+# Extract the scores and join with the QB information
+coordinates_full <- get_pca_ind(flipped_pca)
+
+coordinates_full <- as_tibble(coordinates_full$coord) %>%
+  select(Dim.1, Dim.2) %>%
+  cbind(speaker) %>%
+  rename(SES_Dim = Dim.1, Speed_Dim = Dim.2) %>%
+  left_join(QB1_scores_38, by = "SpeakerID")
+```
+
+### Connecting PCA to the MDS dimensions
+
+What we found in the label PCA was a split between primarily social
+labels and labels primarily related to speed and pitch. This split also
+aligns with the two rotated dimensions from the MDS analysis, where
+Dimension 1 differentiates between the **perceptually low SES** and
+**perceptually high SES** speakers and Dimension 2 differentiates
+between the **perceptually high/fast** and **perceptually slow/low**
+speakers. @fig-MDSUpdated shows how the label PCA translates to our two
+dimensions. Perceptually low SES speakers are encircled in yellow,
+perceptually high SES in purple. Perceptually fast/high speakers are
+encircled in red, perceptually low/slow speakers in blue.
+
+```{r perceptual-groups}
+#| label: fig-MDSUpdated
+#| fig-cap: |
+#|   Speakers whose Label PC1 (A) and PC2 (B) scores are 0.5 (light shade) and 1
+#|   (dark shade) standard deviation above/below the mean score"
+coordinates_full %>%
+  mutate(
+    Speed_Dim = as.numeric(Speed_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1, c("HighSES", "Middle", "LowSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5, c("HighSES", "Middle", "LowSES")),
+    Speed_Dim_Cat = sd_calculate(Speed_Dim, 1, c("FastHigh", "Middle", "SlowLow")),
+    Speed_Dim_Cat2 = sd_calculate(Speed_Dim, 0.5, c("FastHigh", "Middle", "SlowLow"))
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_label(aes(label = SpeakerID), size = 3) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  scale_fill_manual(values = c("#f0496a", "#a541f7", "#ffd117", "#09c9c3")) +
+  theme_bw() +
+  labs(
+    y = "Rotated Dimension 2 (D2)",
+    x = "Rotated Dimension 1 (D1)",
+    colour = "Perceptual Groups",
+    fill = "Perceptual Groups"
+  )
+```
+
+@fig-PCA-perceptual-groups then combines the loadings from the label PCA
+with the rotated MDS space to isolate the specific speakers that are
+most associated with the perceptually high and low SES groups (Figure 4C
+in the manuscript) and the with the perceptually fast/high and slow/low
+groups (Figure 4B in the manuscript).
+
+```{r map-perceptual-areas}
+#| label: fig-PCA-perceptual-groups
+#| fig-cap: | 
+#|   Label PC1 (A), Label PC2 (B), with speakers in the MDS space whose Label 
+#|   PC1 (C) and PC2 (C) scores are 0.5 (light shade) and 1 (dark shade) 
+#|   standard deviation above/below the mean score.
+perceptual_broadness <- coordinates_full %>%
+  mutate(
+    Speed_Dim = as.numeric(Speed_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1,
+                               c("HighSES", "Middle", "LowSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5,
+                                c("HighSES", "Middle", "LowSES")),
+    Speed_Dim_Cat = sd_calculate(Speed_Dim, 1,
+                                 c("FastHigh", "Middle", "SlowLow")),
+    Speed_Dim_Cat2 = sd_calculate(Speed_Dim, 0.5,
+                                  c("FastHigh", "Middle", "SlowLow"))
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    shape = 4,
+    size = 3,
+    alpha = 0.25
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, shape = SES_Dim_Cat),
+    size = 5,
+    alpha = 1
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, shape = SES_Dim_Cat2),
+    size = 5,
+    alpha = 0.35
+  ) +
+  annotate(
+    "text",
+    x = -0.4,
+    y = -0.15,
+    label = "paste(bold('-'))",
+    parse = TRUE,
+    colour = "black",
+    size = 16
+  ) +
+  annotate(
+    "text",
+    x = 0.5,
+    y = 0,
+    label = "paste(bold('+'))",
+    parse = TRUE,
+    colour = "black",
+    size = 16
+  ) +
+  scale_shape_manual(values = c(21, 22)) +
+  scale_fill_manual(values = c("#a541f7", "#ffd117")) +
+  scale_colour_manual(values = c("#a541f7", "#ffd117")) +
+  theme_bw() +
+  labs(
+    y = "Dimension 2 (D2)",
+    x = "Dimension 1 (D1)",
+    colour = "Perceptual Group",
+    fill = "Perceptual Group",
+    shape = "Perceptual Group"
+  ) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+
+perceptual_speed <- coordinates_full %>%
+  mutate(
+    Speed_Dim = as.numeric(Speed_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1,
+                               c("HighSES", "Middle", "LowSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5,
+                                c("HighSES", "Middle", "LowSES")),
+    Speed_Dim_Cat = sd_calculate(Speed_Dim, 1,
+                                 c("FastHigh", "Middle", "SlowLow")),
+    Speed_Dim_Cat2 = sd_calculate(Speed_Dim, 0.5,
+                                  c("FastHigh", "Middle", "SlowLow"))
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 == "Middle"),
+    shape = 4,
+    size = 3,
+    alpha = 0.25
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, shape = Speed_Dim_Cat),
+    size = 5,
+    alpha = 1
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, shape = Speed_Dim_Cat2),
+    size = 5,
+    alpha = 0.35
+  ) +
+  annotate(
+    "text",
+    x = -0.15,
+    y = -0.5,
+    label = "paste(bold('+'))",
+    parse = TRUE,
+    colour = "black",
+    size = 16
+  ) +
+  annotate(
+    "text",
+    x = -0.15,
+    y = 0.4,
+    label = "paste(bold('-'))",
+    parse = TRUE,
+    colour = "black",
+    size = 16
+  ) +
+  theme_bw() +
+  scale_shape_manual(values = c(23, 25)) +
+  scale_fill_manual(values = c("#f0496a", "#09c9c3")) +
+  scale_colour_manual(values = c("#f0496a", "#09c9c3")) +
+  labs(
+    y = "Dimension 2 (D2)",
+    x = "Dimension 1 (D1)",
+    colour = "Perceptual Group",
+    fill = "Perceptual Group",
+    shape = "Perceptual Group"
+  ) +
+  coord_fixed() +
+  theme(legend.position = "bottom")
+
+broadness_speed <- plot_grid(perceptual_broadness,perceptual_speed, nrow=1, labels = c("C","D"))
+broadness_speed
+
+```
+
+Finally, the code chunk below combines @fig-PC1Loadings,
+@fig-PC2Loadings, and @fig-PCA-perceptual-groups to make Figure 4 from
+the manuscript.
+
+```{r combine-pc-loadings-perceptual-groups}
+# Output perceptual groups as a plot.
+
+ggsave(
+  plot = broadness_speed,
+  path = here("Figures",'Plots', "PNG"),
+  dpi = 400,
+  filename = "PerceptualGroups.png",
+  width = 2500,
+  height = 1250,
+  units="px"
+)
+
+combined <- plot_grid(shared_loadings, broadness_speed, ncol=1)
+
+ggsave(
+  plot = combined,
+  path = here("Figures",'Plots', "PNG"),
+  dpi = 300,
+  filename = "Figure6.png",
+  width = 3000,
+  height = 2400,
+  unit="px"
+)
+
+ggsave(
+  plot = combined,
+  path = here("Figures",'Plots', "SVG"),
+  dpi = 400,
+  filename = "Figure6.svg",
+  width = 10,
+  height = 8
+)
+```
+
+## Regression trees to investigate links between perceptual dimensions and acoustic factors {#sec-regression-trees-to-investigate-links-between-perceptual-dimensions-and-acoustic-factors}
+
+MDS analyses often use pairwise correlations to identify acoustic
+correlates of perceptual dimensions [e.g., @RN727; @RN726]. We fit
+regression trees rather than pairwise correlations as they allow us to
+look at how multiple variables predict our perceptual dimensions
+simultaneously. Regression trees partition data sets into smaller groups
+('nodes') and then fit a model for each subgroup based on the specified
+predictors. The tree creates an if-else statement for the most important
+predictor at each node that partitions the data into further nodes,
+until specified thresholds are met. For each node in a tree, we can see
+the estimated dependent variable, the proportion and the number of
+observations represented in the node.
+
+This approach was chosen over single linear regressions due to their
+capacity to capture potential non-linear relationships between
+independent and dependent variables, and interactions between
+independent variables. Furthermore, the if-else statements regression
+trees produce effectively provide 'cutoffs' that, in our case, are very
+useful for delimiting groups of speakers within the MDS space (i.e.,
+speakers above a certain cutoff should be concentrated in a similar area
+of the MDS perceptual space).
+
+We specifically fit two regression trees with stimuli rotated D1 and D2
+scores as the dependent variables, with the following independent
+variables: speakers' scores that measure their position in the
+leader-lagger continuum and back-vowel configuration [generated in the
+analysis in @RN602], and stimuli articulation rate and mean pitch
+measures. All independent variables were scaled to facilitate
+comparability.
+
+To mitigate the high variance and instability of regression trees, we
+took a conservative approach to fitting each tree. To mitigate the
+tendency of regression trees to overfit data, the settings specified
+there had to be an increase of at least 0.05 to the cost/complexity
+parameter for a split to occur. The regression trees were fit using the
+`parsnip` package [@RN766] in `R` with the mode set to regression and
+the engine set to `Rpart` [@RN767]. We also implemented random forests
+to evaluate the importance of each predictor in predicting each
+dimension. The random forests were also fit using parsnip in R with the
+mode set to regression and the engine set to `Ranger` [@RN768]. We fit
+1000 trees with the same improvements to the cost/complexity parameter
+for a split to occur as the regression tree.
+
+### Predicting D1 with a regression tree
+
+@fig-perceptual-broadness depicts the results of the regression tree
+predicting Dimension 1 fit in the code chunk below. Starting with all 38
+stimuli, we can see that position in leader-lagger continuum is the
+first node in the tree. Speakers who are laggers in the leader-lagger
+continuum with scores below -0.26 (more negative scores = further behind
+in changes) are estimated to have lower D1 scores than speakers with
+scores above 0.26. As negative D1 scores are associated with higher SES
+labels, this points to laggers in change being perceived to sound higher
+SES than leaders.
+
+Within the leaders, however, their scores are mediated by their
+articulation rate: it is the slower leaders who have the highest
+estimated D1 scores. In other words, the speakers who are perceived to
+sound the most broad and low SES are not only leaders in change, they
+are also slower. Leaders in change who are fast are perceived to sound
+both less broad than slow leaders. As such, the primary differentiation
+of perceived broadness is between laggers and slow leaders.
+
+```{r tidy-models-fit}
+# We set up a data frame for regression analysis, scaling all relevant
+# variables.
+regression_df <- coordinates_full %>%
+  mutate(
+    LeaderLaggerScore = scale(PC1_swapped),
+    BackVowelScore = scale(PC2),
+    ArticRate = scale(articulation_rate),
+    MeanPitch2 = scale(pitch_cross_75_500),
+    SpeechRate = scale(speech_rate_update),
+    PhonProp = scale(phonation_prop),
+    PauseProp = scale(pause_prop),
+    PauseTotal = scale(pause_total),
+    CreakProp = scale(creak_prop),
+    Syllables = scale(syllable_total),
+    Speed_Dim = as.numeric(Speed_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1, c("HighSES", "Middle", "LowSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5, c("HighSES", "Middle", "LowSES")),
+    Speed_Dim_Cat = sd_calculate(Speed_Dim, 1, c("FastHigh", "Middle", "SlowLow")),
+    Speed_Dim_Cat2 = sd_calculate(Speed_Dim, 0.5, c("FastHigh", "Middle", "SlowLow"))
+  )
+
+# Now fit the trees
+set.seed(4)
+tree_spec <-
+  # Set model type
+  decision_tree() %>%
+  # Set mode
+  set_mode("regression") %>%
+  # Specify engine
+  set_engine(
+    "rpart",
+    control = rpart.control(cp = 0.05),
+    method = "anova",
+    model = TRUE
+  )
+
+d1_fit <- tree_spec %>%
+  fit(Rotated_D1_FC ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+```
+
+We output a plot of the D1 regression tree.
+
+```{r D1-regression-tree-plot}
+#| label: fig-perceptual-broadness
+#| fig.cap: |
+#|   Regression tree predicting perceptual broadness. n indicates number of 
+#|   stimuli in each node, % the proportion of the total. The number represents 
+#|   the estimated D1 scores for speakers in that node.
+d1_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#a541f7", "#F9A742", "#be4580", "#e66f70", "#ffd117"),
+    cex = 1,
+    xflip = F
+  )
+```
+
+The following code block saves the plot.
+
+```{r save-D1-regression-tree-output}
+#| output: false
+#| 
+ppi <- 300
+png(
+  here("Figures", 'Plots', "PNG", "D1RegressionTreeFull.png"),
+  width = 1900,
+  height = 1350,
+  res = ppi
+)
+
+d1_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#a541f7", "#F9A742", "#be4580", "#e66f70", "#ffd117"),
+    cex = 1,
+    xflip = F
+  )
+dev.off()
+```
+
+@fig-perceptual-broadness-mapped then maps the cutoff values from the
+regression tree on the MDS space. We can see that the slow leaders are
+concentrated to the right of the space, with almost all within the
+perceptually low SES group. The laggers are concentrated to the left of
+the space, with most of the speakers within the perceptually high SES
+group also laggers. Fast laggers tend to be between the two groups, but
+concentrated more with the laggers than the slow leaders.
+
+```{r D1-regression-tree-MDS-space}
+#| echo: false
+#| label: fig-perceptual-broadness-mapped
+#| fig-cap: |
+#|   The cutoffs in the regression tree predicting D1 scores mapped onto the 
+#|   rotated MDS space. Speakers whose PC1 score was not +/- 0.5 SD above the mean have a lower alpha. 
+perceived_broadness <- regression_df %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.26 ~ "Lagger", T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.2) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      PC1_tree == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree, speed_tree)
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35,
+    size = 2
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.15,
+    size = 2
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.25
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1
+  ) +
+  scale_fill_manual(values = c(c("#a541f7", "#ffd117"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "LL/Speed",
+    shape = "LL/Speed",
+    fill = "Perc. Group",
+    linetype = "Perc. Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(
+    legend.position = "bottom",
+    # change legend title font size
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 12, face = "bold")
+  )
+
+# Extract legend
+perceived_broadness_leg1 <-
+  ggpubr::get_legend(perceived_broadness, position = "bottom")
+
+# Place legends underneath plot separately
+# Done to improve readability of Figure 7A
+
+perceived_broadness_adj <-
+  plot_grid(
+    perceived_broadness + theme(legend.position = "none"),
+    perceived_broadness_leg1$grobs[[1]],
+    perceived_broadness_leg1$grobs[[2]],
+    ncol = 1,
+    rel_heights = c(1, 0.1, 0.1)
+  ) +
+  theme(plot.background = element_rect(fill = "white", colour = NA))
+
+# save plot as png
+ggsave(
+  plot = perceived_broadness_adj,
+  path = here("Figures", 'Plots', "PNG"),
+  dpi = 300,
+  filename = "PerceivedBroadness.png",
+  # height = 1650,
+  height = 1750,
+  width = 1800,
+  units = "px"
+)
+
+perceived_broadness_adj
+```
+
+#### Evaluating the stability of D1 predictor importance with random forests
+
+But how stable are these features as predictors of D1 scores? The next
+code chunk applies random forests to the same dependent and independent
+variables used in the regression tree. Random forest uses
+`rand_forest()` to define a model that creates a large number of
+decision trees, each independent of the others. The final prediction
+uses all predictions from the individual trees and combines them. We are
+then able to extract from the combined trees in both procedures the
+estimated 'importance' of each of our independent variables in
+predicting the dependent variable.
+
+```{r D1-boosting-random-forest}
+set.seed(2)
+
+# Random forest settings
+random_f <-
+  rand_forest(trees = 1000) %>%
+  set_engine("ranger",
+             importance = "permutation",
+             alpha = 0.05) %>%
+  set_mode("regression")
+
+# Apply random forest to dependent and independent variables
+d1_rf_fit <-
+  random_f %>%
+  fit(Rotated_D1_FC ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+```
+
+@fig-boosting-d1 shows the ranked importance of the four variables in
+the random forest regression trees. The importance value is instead
+based on whether a variable has a positive effect on the predictor
+performance of the tree. A more positive score corresponds to increased
+importance in predicting the dependent variable (i.e., more frequent use
+to make key decisions within the decision trees and greater improvement
+to model fit when used). It should be noted, however that these measures
+are for capturing the importance of individual variables and are not
+designed to capture interactions [see @wright2016little].
+
+```{r}
+#| label: fig-boosting-d1
+#| fig.cap: |
+#|   Variable importance in predicting perceptual broadness from random forest
+#|   procedures.
+d1_rf_fit %>%
+  extract_fit_engine() %>%
+  vip() +
+  theme_bw(base_size = 12) +
+  labs(y = "Importance (Random Forest)")
+```
+
+The results of the random forests uphold the primary importance of
+articulation rate and the leader-lagger continuum in predicting
+perceptual broadness. Pitch and the back vowel configuration have the
+least importance of the four predictors.
+
+To give an idea of how perceptual broadness relates to speakers'
+positions in the leader-lagger continuum, @fig-D1-vowel-spaces
+illustrates the different vowel spaces of two slow speakers at opposite
+ends of the leader-lagger continuum and with contrasting D1 scores
+(vowel spaces are based on mean F1/F2 values from their entire QuakeBox
+monologues, not just from the stimuli in the experiment). Vowels not in
+the leader-lagger continuum are in black, and vowels in the
+leader-lagger continuum are in colour. Compared to the lagger in change
+(low D1 score = high perceived SES), the leader in change (high D1 score
+= low perceived SES) has high and front realisations of
+[dress]{.smallcaps}, [trap]{.smallcaps}, [nurse]{.smallcaps} and
+[lot]{.smallcaps}, and retracted realisations of [kit]{.smallcaps} and
+[fleece]{.smallcaps}. Both speakers are slow.
+
+```{r}
+#| label: fig-D1-vowel-spaces 
+#| fig.cap: |
+#|   Vowel spaces of perceptually high SES lagger (high D1 score) and a 
+#|   perceptually low SES leader (low D1 score)
+
+QB1_vowels_mean %>%
+  filter(Speaker %in% c("QB_NZ_F_529", "QB_NZ_F_870")) %>%
+  pivot_longer(cols = c(2:21), names_to = "Variable") %>%
+  separate(Variable, into = c("Formant", "Vowel")) %>%
+  pivot_wider(
+    id_cols = c("Speaker", "Vowel"),
+    names_from = "Formant",
+    values_from = "value"
+  ) %>%
+  mutate(
+    LeaderLagger = case_when(
+      Speaker == "QB_NZ_F_870" ~ " Leader (perceptually low SES, speaker 31)",
+      T ~ "Lagger (perceptually high SES, speaker 28)"
+    )
+  ) %>%
+  ggplot(aes(y = F1, x = F2, label = Vowel)) +
+  geom_label(data = . %>%  filter(!Vowel %in% c(
+    "KIT", "TRAP", "DRESS", "NURSE", "FLEECE", "LOT"
+  )),
+  colour = "black") +
+  geom_label(data = . %>%  filter(Vowel %in% c(
+    "KIT", "TRAP", "DRESS", "NURSE", "FLEECE", "LOT"
+  )), aes(colour = Vowel)) +
+  scale_y_reverse() +
+  scale_x_reverse(expand = expansion(0.2)) +
+  facet_wrap( ~ LeaderLagger) +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "none")
+
+```
+
+#### Confirming relationship between D1 and Label PC1 scores
+
+This section has so far shown that speakers' rotated D1 scores
+systematically increase and decrease with the use of labels related to
+(perceived) high and low socioeconomic status (captured by Label PC1),
+and that speakers are differentiated along D1 by their speed and
+position in the leader-lagger continuum. @fig-perceptual-SES confirms
+that the Label PC1 scores themselves are also predicted by the same
+variables, based on the same regression tree procedure in the previous
+section, with some minor adjustments to the cutoff values for the
+leader-lagger scores and speed. The change in Leader-Lagger score cutoff
+reflects three fast/high speakers (laggers in the previous tree, leaders
+here) who are outside the perceptually high SES speaker group, and a
+fourth lagger who was not in the more concentrated high-SES speaker
+group.
+
+```{r}
+#| label: fig-perceptual-SES
+#| fig.cap: | 
+#|   Regression tree predicting perceptual broadness. n indicates number of 
+#|   stimuli in each node, % the proportion of the total. The number represents 
+#|   the estimated D1 scores for speakers in that node.
+set.seed(4)
+
+pc1_fit <- tree_spec %>%
+  fit(SES_Dim ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+
+pc1_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#a541f7", "#F9A742", "#be4580", "#e66f70", "#ffd117"),
+    cex = 1,
+    xflip = F
+  )
+
+```
+
+Nonetheless, the overall interpretation of the space in
+@fig-PC1-scores-tree-mapped remains stable. @fig-PC1-scores-tree-mapped
+maps the cutoffs from the regression tree predicting D1 scores onto the
+perceptual space on the right, and the cutoffs from the regression tree
+predicting PC1 scores on the left. Across both spaces, the perceptually
+high SES speaker group consists predominantly of the same laggers, and
+the perceptually low SES group consists of the same leaders (mostly
+slow)
+
+```{r map-LPC1-MDS}
+#| label: fig-PC1-scores-tree-mapped
+#| fig-cap: | 
+#|   The cutoffs in the regression tree predicting D1 scores (Left) and Label PC1 scores (right) mapped onto 
+#|   the rotated MDS space 
+perceived_broadness +
+  theme(legend.position = "left") +
+  regression_df %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.65 ~ "Lagger", T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.2) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      PC1_tree == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree, speed_tree)
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.25
+  ) +
+  scale_linetype_manual(values = c("solid", "dashed")) +
+  scale_fill_manual(values = c(c("#a541f7", "#ffd117"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = NULL,
+    colour = "LL/Speed",
+    shape = "LL/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "none", # change legend title font size
+        legend.text = element_text(size = 6))
+```
+
+### Predicting D2 with a regression tree
+
+@fig-perceptual-speed displays the regression tree predicting perceptual
+speed/pitch (D2). Here, the leader-lagger continuum was not selected by
+the regression tree and articulation rate is the first node in the tree.
+Slow speakers with rates below -0.11 (more negative scores = slower) are
+estimated to have lower D2 scores than speakers with scores above -0.11.
+As negative D2 scores are associated with slower speech labels, this
+points to slow speakers being perceived as such. Moreover, within the
+group of faster speakers, those with a higher mean pitch have a higher
+estimated D2 score than those with lower mean pitch. This points to fast
+and higher pitch speakers also being perceived as such, as high D2
+scores are associated with higher pitch/faster labels.
+
+```{r }
+#| label: fig-perceptual-speed
+#| fig.cap: |
+#|   Regression tree predicting perceptual speed n indicates number of stimuli in 
+#|   each node, % the proportion of the total. The number represents the 
+#|   estimated D2 scores for speakers in that node.
+set.seed(9)
+
+d2_fit <- tree_spec %>%
+  fit(Rotated_D2_FC ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+
+d2_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+The following code block saves the plot above.
+
+```{r save-D2-tree-output}
+#| output: false
+ppi <- 300
+png(
+  here("Figures",
+       "Plots",
+       "PNG",
+       "D2RegressionTreeFull.png"),
+  width = 1400,
+  height = 1400,
+  res = ppi
+)
+
+d2_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+dev.off()
+```
+
+@fig-perceptual-speed-pitch then maps the cutoff values from the
+regression tree in @fig-perceptual-speed on to the MDS space. We can see
+that the slow leaders are concentrated in the bottom of the space, with
+almost all within the perceptually slow/low group. The fast and high
+pitch speakers are concentrated in the top left of the space.
+
+```{r}
+#| echo: false 
+#| label: fig-perceptual-speed-pitch
+#| fig-cap: | 
+#|   The cutoffs in the regression tree predicting D2 scores mapped onto the 
+#|   rotated MDS space 
+perceived_speed <- regression_df %>%
+  mutate(
+    speed_tree = case_when(ArticRate < (-0.11) ~ "Slow", T ~ "Fast"),
+    pitch_tree2 = case_when(MeanPitch2 < (0.15) ~ "Low", T ~ "High"),
+    pitch_speed_tree = case_when(
+      speed_tree == "Slow" ~ "Slow",
+      speed_tree != "Slow" & pitch_tree2 == "High" ~ "FastHigh",
+      T ~ "FastLow"
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>%
+      filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35,
+    size = 2
+  ) +
+  geom_encircle(
+    data = . %>%
+      filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.15,
+    size = 2
+  ) +
+  geom_point(
+    data = . %>%
+      filter(Speed_Dim_Cat2 != "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 2,
+  ) +
+  geom_point(
+    data = . %>%
+      filter(Speed_Dim_Cat2 == "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 5,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  scale_shape_manual(values = c(18, 17, 8)) +
+  scale_linetype_manual(values = c("dashed", "twodash")) +
+  scale_fill_manual(values = c(c("#f0496a", "#09c9c3"))) +
+  scale_colour_manual(values = c(c("#f0496a", "#F9A742", "#09c9c3"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perc. Group",
+    linetype = "Perc. Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 12, face = "bold")
+  )
+
+# Save version with legend as png
+ggsave(
+  plot = perceived_speed,
+  path = here("Figures","Plots","PNG"),
+  dpi = 300,
+  filename = "PerceivedSpeed.png",
+  #height = 1650,
+  height = 1550,
+  width = 1800,
+  units = "px",
+)
+
+# Save plot without legend as png
+# For constructing Figure 7
+no_leg <- perceived_speed + theme(legend.position = "none")
+
+ggsave(
+  plot = no_leg,
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "PerceivedSpeedNoLeg.png",
+  #height = 1650,
+  height = 1550,
+  width = 1800,
+  units = "px",
+)
+
+# Extract and save legend
+# For constructing Figure 7
+perceived_speed_leg <-
+  ggpubr::get_legend(perceived_speed, position = "bottom")
+
+legend_long <-
+  plot_grid(perceived_speed_leg$grobs[[1]],
+            perceived_speed_leg$grobs[[2]],
+            nrow = 1) +
+  theme(plot.background = element_rect(fill = "white", colour = NA))
+
+ggsave(
+  plot = legend_long,
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "PerceivedSpeedLegend.png",
+  heigh = 100,
+  width = 2250,
+  units = "px",
+)
+
+perceived_speed
+```
+
+#### Evaluate stability of D2 predictor importance with random forests
+
+The next code chunk applies the same random forests procedures from
+perceptual broadness to perceptual speed. @fig-boost-d2 shows the ranked
+importance of the same four variables in the random forest procedure.
+Articulation rate emerges as by far the most important predictor, with
+mean pitch having the next most important impact. The back-vowel
+configuration and leader-lagger scores do not emerge as importance
+predictors of perceptual speed and pitch.
+
+```{r}
+#| label: fig-boost-d2
+#| fig.cap: |
+#|   Variable importance in predicting perceptual speed from random forest 
+#|   procedures.
+
+set.seed(7)
+
+d2_rf_fit <-
+  random_f %>%
+  fit(Rotated_D2_FC ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+
+d2_rf_fit %>%
+  extract_fit_engine() %>%
+  vip() +
+  theme_bw(base_size = 12) +
+  labs(y = "Importance (Random Forest)")
+```
+
+#### Confirming relationship between D2 and Label PC2 scores
+
+This subsection has so far shown that speaker's rotated D2 scores
+systematically increase and decrease with the use of labels related to
+(perceived) speed and pitch (captured by Label PC2), and that speakers
+are differentiated along D2 by their speed and pitch. The code chunks
+below confirm that the Label PC2 scores themselves are also predicted by
+the same variables, with some minor adjustments to the cutoff values. As
+with D1 and PC1, none of the speakers who comprise the perceptually
+high/fast or slow/low groups are affected and the interpretation of the
+space remains stable.
+
+```{r}
+#| label: fig-predicting-PC2
+#| fig.cap: | 
+#|   Regression tree predicting Label PC2 scores: n indicates number of stimuli 
+#|   in each node, % the proportion of the total. The number represents the 
+#|   estimated PC2 scores for speakers in that node.
+set.seed(9)
+pc2_fit <- tree_spec %>%
+  fit(Speed_Dim ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df)
+
+pc2_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+When we plot these cutoffs in the MDS space in
+@fig-perceptual-speed-pitch-pc2 we can see that the perceptually
+slow/low group is still comprised of predominantly of slow speakers
+(with some low pitch speakers) and almost all fast *and* high speakers
+comprise the perceptually high/fast group (along with some fast but not
+high speakers).
+
+```{r}
+#| echo: false
+#| label: fig-perceptual-speed-pitch-pc2
+#| fig-cap: | 
+#|   The cutoffs in the regression trees predicting D2 scores (right) and Label PC2 scores (left) mapped onto the 
+#|   rotated MDS space. Speakers whose PC2 scores are not 0.5 SD +/- the mean have a lower alpha.
+
+perceived_speed +
+  theme(legend.position = "left") +
+  regression_df %>%
+  mutate(
+    speed_tree2 = case_when(ArticRate < (-0.17) ~ "Slow", T ~ "Fast"),
+    pitch_tree2 = case_when(MeanPitch2 < (0.31) ~ "Low", T ~ "High"),
+    pitch_speed_tree = case_when(
+      speed_tree2 == "Slow" ~ "Slow",
+      speed_tree2 != "Slow" &
+        pitch_tree2 == "High" ~ "FastHigh",
+      T ~ "FastLow"
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 == "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.25
+  ) +
+  scale_shape_manual(values = c(18, 17, 8)) +
+  scale_linetype_manual(values = c("dashed", "twodash")) +
+  scale_fill_manual(values = c(c("#f0496a", "#09c9c3"))) +
+  scale_colour_manual(values = c(c("#f0496a", "#F9A742", "#09c9c3"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = NULL,
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "none",
+        legend.text = element_text(size = 6))
+```
+
+## Interpreting the full space by applying results of regression trees to MDS spaces
+
+@fig-space-interpretation interprets the MDS space as a whole, drawing
+on the results of the regression trees predicting D1/D2 and the Label
+PCA (Figure 6C in the manuscript). We can discern four main overlaps in
+speaker production and listener perception:
+
+-   Higher pitch and/or fast speakers are perceived as such, regardless
+    of whether they are a leader or lagger, and are concentrated in the
+    top right of the space in red.
+
+-   Slower and lower pitch speakers are also perceived as such, and are
+    concentrated in the bottom (left) of the space in blue.
+
+-   Perceptually low SES speakers are predominantly slow leaders in
+    change, and are concentrated to the right of the space in yellow.
+
+-   Perceptually high SES speakers are predominantly laggers in change,
+    and are concentrated to the left of the space in purple.
+
+```{r}
+#| label: fig-space-interpretation
+#| fig.cap: | 
+#|   Interpretation of the MDS perceptual space as a whole. We can discern four main groups: (1) perceptually high and fast speakers who are higher pitch and/or faster, (2) perceptually slow and low speakers who are slow and/or lower pitch, (3) slow leaders who are perceptually low SES, and (4) laggers who are perceptually high SES. Fast leaders are the least perceptually distinct and are distributed throughout the space. 
+perceived_space <- regression_df %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.26 ~ "Lagger", T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.11) ~ "Slow", T ~ "Fast"),
+    pitch_tree2 = case_when(MeanPitch2 < (0.15) ~ "Low", T ~ "High"),
+    main_groups4 = case_when(
+      speed_tree == "Fast" & Rotated_D2_FC > (0.25) ~ "High and/or fast",
+      PC1_tree == "Lagger" ~ "Laggers",
+      speed_tree == "Slow" &
+        Rotated_D2_FC < (-0.4) ~ "Slow and/or low",
+      speed_tree == "Slow" &
+        PC1_tree == "Leader" ~ "Leaders (Slow)",
+      speed_tree == "Fast" &
+        PC1_tree == "Leader" ~ "Leaders (Fast)",
+      T ~ interaction(pitch_tree2, speed_tree, PC1_tree)
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.15,
+    size = 2
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35,
+    size = 2
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35,
+    size = 2
+  ) +
+  geom_point(aes(shape = main_groups4,
+                 colour = main_groups4),
+             size = 6,
+             stroke = 2) +
+  labs(title = "Interpretation of perceptual space",
+       shape = "Main Groups",
+       fill = "Associated labels") +
+  #- fast, medium/high pitch,
+  #+ slow speech, low pitch, flat tone, old
+  scale_fill_manual(values = c(c(
+    "#f0496a", "#a541f7", "#ffd117",  "#09c9c3"
+  ))) +
+  scale_colour_manual(values = c(c(
+    "#f0496a", "#a541f7", "orange", "#ffd117", "#09c9c3"
+  ))) +
+  scale_shape_manual(values = c(18, 16, 17, 15, 8, 21)) +
+  annotate(
+    "label",
+    label = c("Slow (+low) leaders + laggers"),
+    y = -0.55,
+    x = 0,
+    fill = "#3edec5"
+  ) +
+  annotate(
+    "label",
+    label = c("'Slow','low','old'"),
+    y = -0.65,
+    x = 0,
+    fill = "#3edec5"
+  ) +
+  annotate(
+    "label",
+    label = c("SLOW + LOW"),
+    y = -0.45,
+    x = 0,
+    colour = "#3edec5"
+  ) +
+  annotate(
+    "label",
+    label = c("Slow or low"),
+    y = -0.1,
+    x = 0.5,
+    fill = "#F9A742"
+  ) +
+  annotate(
+    "label",
+    label = c("'Rural','Low SES','Strong NZ'"),
+    y = -0.2,
+    x = 0.5,
+    fill = "#F9A742"
+  ) +
+  annotate(
+    "label",
+    label = c("LEADERS"),
+    y = 0,
+    x = 0.5,
+    colour = "#F9A742"
+  ) +
+  annotate(
+    "label",
+    label = c("Slow (+low)"),
+    y = -0.1,
+    x = -0.3,
+    fill = "#a541f7"
+  ) +
+  annotate(
+    "label",
+    label = c("'High SES','Mid SES','Clear'"),
+    y = -0.2,
+    x = -0.3,
+    fill = "#a541f7"
+  ) +
+  annotate(
+    "label",
+    label = c("LAGGERS"),
+    y = 0,
+    x = -0.3,
+    colour = "#a541f7"
+  ) +
+  annotate(
+    "label",
+    label = c("High and/or fast leaders + laggers"),
+    y = 0.5,
+    x = -0.25,
+    fill = "#f0496a"
+  ) +
+  annotate(
+    "label",
+    label = c("'High pitch', 'fast'"),
+    y = 0.4,
+    x = -0.25,
+    fill = "#f0496a"
+  ) +
+  annotate(
+    "label",
+    label = c("HIGH + FAST"),
+    y = 0.6,
+    x = -0.25,
+    colour = "#f0496a"
+  ) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    shape = "Production Groups",
+    colour = "Production Groups",
+    fill = "Perceptual Groups",
+    linetype = "Perceptual Groups"
+  ) +
+  scale_linetype_manual(values = c("dashed", "solid", "dotted", "twodash")) +
+  coord_fixed() +
+  theme_bw() +
+  theme(
+    legend.position = "right",
+    #legend.key.size = unit(1, "cm"),
+    # change legend key size
+    #legend.key.height = unit(1, "cm"),
+    # change legend key height
+    #legend.key.width = unit(1, "cm"),
+    # change legend key width
+    legend.title = element_text(size = 12, face = "bold"),
+    # change legend title font size
+    legend.text = element_text(size = 12)
+  )
+
+perceived_space
+
+# save as png
+ggsave(
+  perceived_space,
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "MainGroupsFullLabelsInterpretation.png",
+  width = 3200,
+  height = 1650,
+  units = "px"
+)
+
+```
+
+The code chunk below combines @fig-space-interpretation with
+@fig-perceptual-broadness, @fig-perceptual-broadness-mapped,
+@fig-perceptual-speed and @fig-perceptual-speed-pitch for the manuscript
+(Figure 6).
+
+```{r combine-all-figures}
+# Load interpretation of full MDS space
+  maingroups <-
+    image_read(here("Figures", "Plots", "PNG",
+        'MainGroupsFullLabelsInterpretation.png'
+      )
+    )
+
+# Load blank image (used to create balance in final image)
+blank <-
+  image_read(here("Figures", "External", 'Blank.png'))
+
+main_side <- image_crop(blank, geometry = "50x1200")
+
+main_top <- image_crop(blank, geometry = "3400x200")
+
+# Add blank space to top of interpretation of full space
+to_append_main <- c(main_top, maingroups)
+maingroups <- image_append(to_append_main, stack = T) 
+  to_append_main2 <- c(main_side, maingroups)
+maingroups <- image_append(to_append_main2, stack = F) 
+
+# Add a border
+maingroups <-
+  image_border(maingroups, color = "#000000", geometry = "15x15")
+
+# Load plot of output of regression tree predicting D1
+D1RegressionTree <-
+  image_read(here("Figures", "Plots", "PNG",
+                  'D1RegressionTreeFull.png'))
+
+
+# Load plot of output of regression tree predicting D2
+D2RegressionTree <-
+  image_read(here("Figures", "Plots", "PNG",
+                  'D2RegressionTreeFull.png'))
+
+# Rotate D2 tree
+D2RegressionTree <- image_rotate(D2RegressionTree, degrees = 90)
+
+#Load MDS space with cutoffs from D1 regression tree mapped
+D1MDS <-
+  image_read(here("Figures", "Plots", "PNG",
+                  'PerceivedBroadness.png'))
+
+# Load MDS with cutoffs from D2 regression tree mapped
+D2MDS <-
+  image_read(here("Figures", "Plots", "PNG",
+                  'PerceivedSpeedNoLeg.png'))
+
+D2MDS_leg <-
+  image_read(here("Figures", "Plots", "PNG",
+                  'PerceivedSpeedLegend.png'))
+
+# Combine D1 regression tree + mapped MDS space with blank space
+D1_top <- image_crop(blank, geometry = "1900x350")
+D1_bottom <- image_crop(blank, geometry = "1900x250")
+
+to_append_D1 <- c(D1_top, D1RegressionTree, D1MDS, D1_bottom)
+
+D1_appended <- image_append(to_append_D1, stack = T)
+
+# Add borders
+D1_appended <-
+  image_border(D1_appended, color = "#ffffff", geometry = "30x15")
+D1_appended <-
+  image_border(D1_appended, color = "#000000", geometry = "15x15")
+
+# Combine D2 regression tree + mapped MDS space with blank space
+D2_top <- image_crop(blank, geometry = "3400x150")
+D2_bottom <- image_crop(blank, geometry = "3400x50")
+
+to_append_D2 <- c(D2MDS, D2RegressionTree)
+D2_appended <- image_append(to_append_D2, stack = F)
+
+to_append_D2_2 <- c(D2_appended, D2MDS_leg)
+D2_appended_2 <- image_append(to_append_D2_2, stack = T)
+
+to_append_D2_3 <- c(D2_top, D2_appended_2,D2_bottom)
+D2_appended_3 <- image_append(to_append_D2_3, stack = T)
+
+to_append_D2_4 <- c(main_side, D2_appended_3)
+D2_appended_4 <- image_append(to_append_D2_4, stack = F)
+
+D2_appended_4 <-
+  image_border(D2_appended_4, color = "#000000", geometry = "15x15")
+
+# Connect D2 tree/MDS space image to interpretation of full space
+to_append_MainD2 <- c(D2_appended_4, maingroups)
+
+MainD2_appended <- image_append(to_append_MainD2, stack = T)
+
+# Connect D2 tree/MDS space/full space image to D1 tree/MDS space
+
+toappend_D1_MainD2 <- c(D1_appended, MainD2_appended)
+
+D1_MainD2_appended <- image_append(toappend_D1_MainD2, stack = F)
+
+# Add border
+D1_MainD2_appended <-
+  image_border(D1_MainD2_appended,
+               color = "#000000",
+               geometry = "15x15")
+
+# Annotate full image with additional text 
+D1_MainD2_appended <- D1_MainD2_appended %>%
+  image_annotate(
+    "A: Analysis of D1",
+    size = 150,
+    location = "+100+45",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "B: Analysis of D2",
+    size = 150,
+    location = "+2100+45",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "C: Combined interpretation of D1 and D2",
+    size = 150,
+    location = "+2100+1950",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  )
+
+D1_MainD2_appended2 <- D1_MainD2_appended %>%
+  image_annotate(
+    "Slow Leaders",
+    size = 70,
+    location = "+1450+1300",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "Fast Leaders",
+    size = 70,
+    location = "+750+1300",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "Laggers",
+    size = 70,
+    location = "+250+1300",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "Fast + high pitch",
+    size = 70,
+    location = "+4150+325",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "Fast + low pitch",
+    size = 70,
+    location = "+4150+900",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  ) %>%
+  image_annotate(
+    "Slow speakers",
+    size = 70,
+    location = "+4250+1400",
+    color = "black",
+    degrees = 0,
+    boxcolor = "white"
+  )
+
+D1_MainD2_appended_resize <- image_scale(D1_MainD2_appended2, geometry="x2800")
+
+image_write(
+  D1_MainD2_appended_resize,
+  path = here(
+    "Figures",
+    'Plots',
+    "PNG",
+    'Figure8.png'
+  ),
+  format = "png",
+  density= "400",
+  quality=100
+)
+
+image_write(
+  D1_MainD2_appended2,
+  path = here(
+    "Figures",
+    'Plots',
+    "SVG",
+    'Figure8.pdf'
+  ),
+  format = "pdf",
+  density= "400",
+  quality=100
+)
+
+png <- image_read(here(
+    "Figures",
+    'Plots',
+    "PNG",
+    'Figure8.png'
+  ))
+ image_info(png)
+
+D1_MainD2_appended_test <- image_convert(png, format="svg")
+
+image_write(
+  png,
+  path = here(
+    "Figures",
+    'Plots',
+    "SVG",
+    'Figure8.svg'
+  ),
+  format = "svg",
+  density="400",
+  flatten=F,
+  quality=100
+)
+
+D1_MainD2_appended2
+```
+
+# Comparing spaces across tasks {#sec-comparing-spaces-across-tasks}
+
+Some differences emerged in the results predicting Dimension 1 from this
+MDS space and the space reported in @RN003 based on pairwise comparison
+data from the same stimuli. This section contains code for Figures 7 and
+8 from the manuscript, which compare *perceptually high/low SES* and
+*perceptually fast/slow* speaker groups (i.e., speakers whose Label PC
+scores are 0.5 SDs above/below the mean) in the reported Free
+Classification MDS space to those in the Pairwise Rating MDS space.
+
+The code chunk below creates a dataframe for the figures, using cutoffs
+from the regression trees predicting rotated D1 and D2 scores from the
+Free Classification MDS space.
+
+```{r create-df-for-visuals}
+visualisation_df <- regression_df %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.26 ~ 'Lagger', T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.2) ~ "Slow", T ~ "Fast"),
+    speed_tree2 = case_when(ArticRate < (-0.11) ~ "Slow", T ~ "Fast"),
+    speed_tree3 = case_when(ArticRate < (-0.27) ~ "Slow", T ~ "Fast"),
+    speed_tree_comb = case_when(
+      ArticRate < (-0.27) ~ "Slow",
+      ArticRate >= (-0.11) ~ "Fast",
+      T ~ "Middle"
+    ),
+    PC1_tree_comb = case_when(
+      LeaderLaggerScore < (-0.26) ~ "Lagger",
+      LeaderLaggerScore >= (-0.065) ~ "Leader",
+      T ~ "Middle"
+    ),
+    pitch_tree_comb = case_when(
+      MeanPitch2 < (0.15) ~ "Low",
+      MeanPitch2 >= (0.96) ~ "High",
+      T ~ "Middle"
+    ),
+    pitch_tree2 = case_when(MeanPitch2 < (0.15) ~ "Low", T ~ "High"),
+    BVC_tree = case_when(BackVowelScore > 0 ~ "Positive", T ~ "Negative"),
+    pitch_speed_tree = case_when(
+      speed_tree2 == "Slow" ~ "Slow",
+      speed_tree2 != "Slow" &
+        pitch_tree2 == "High" ~ "FastHigh",
+      T ~ "FastLow"
+    ),
+    pitch_speed_tree2 = interaction(pitch_tree2, speed_tree2),
+    pitch_speed_tree3 = case_when(
+      pitch_tree2 == "High" ~ "High",
+      pitch_tree2 != "High" &
+        speed_tree2 == "Fast" ~ "FastLow",
+      T ~ "SlowLow"
+    ),
+    PC1_speed_tree = case_when(
+      PC1_tree == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree, speed_tree)
+    ),
+    main_groups3 = case_when(
+      PC1_tree == "Lagger" &
+        SES_Dim_Cat2 == "HighSES" ~ "DistinctLaggers",
+      PC1_tree == "Leader" &
+        SES_Dim_Cat2 == "LowSES" ~ "DistinctLeaders",
+      T ~ "NonDistinct"
+    )
+  ) %>%
+  separate(
+    Speaker,
+    into = c("Corpus", "NZ", "Gender", "Number"),
+    sep = "_",
+    remove = F
+  ) 
+```
+
+@fig-compare-leader-laggers-FCPC compares the D1 scores from both
+spaces, using different point types/colours to identify speakers with
+different leader-lagger vowels (Figure 7 in the manuscript). The
+perceptually low SES leaders and perceptually high SES laggers are in
+yellow circles and purple squares, respectively (i.e., perceptually low
+SES laggers and high SES leaders are not indicated). We can see that the
+same perceptually distinct leaders are grouped together in both spaces.
+These leaders are also grouped apart from the perceptually distinct
+laggers, who are grouped together in both spaces.
+
+```{r compare-leader-laggers-across-tasks}
+#| label: fig-compare-leader-laggers-FCPC
+#| fig.cap: | 
+#|  Comparing the position of perceptually low SES leaders and high SES 
+#|  laggers within the MDS space from the Free Classification task 
+#|  and the space from Sheard et al. Cutoffs mapped to distinguish leaders from lagers are from the regression tree predicting D1 scores from the Free Classification MDS space. Speakers whose label PC1 score are not 0.5 SD +/-  the mean have a lower alpha.
+
+visualisation_df %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.35
+  ) +
+  geom_point(
+    data = . %>% filter(main_groups3 != "NonDistinct"),
+    aes(shape = main_groups3,
+        colour = main_groups3),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(main_groups3 == "NonDistinct"),
+    size = 6,
+    stroke = 1,
+    shape = 4,
+    colour = "grey",
+    alpha = 0.25
+  ) +
+  geom_text(data = . %>% filter(main_groups3 != "NonDistinct"),
+            aes(label = SpeakerID)) +
+  geom_text(
+    data = . %>% filter(main_groups3 == "NonDistinct"),
+    aes(label = SpeakerID),
+    alpha = 0.25
+  ) +
+  scale_shape_manual(values = c(16, 15)) +
+  scale_fill_manual(values = c(c("#a541f7", "#ffd117"))) +
+  scale_colour_manual(values = c(c(
+    "#a541f7", "#ffd117"
+  ))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+    title = "Free Classification Task",
+       tag = "A"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  guides(shape = "none",
+         colour = "none") +
+  visualisation_df %>%
+  ggplot(aes(x = D1_PW, y = D2_PW)) +
+  geom_point(
+    data = . %>% filter(main_groups3 != "NonDistinct"),
+    aes(shape = main_groups3,
+        colour = main_groups3),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(main_groups3 == "NonDistinct"),
+    size = 6,
+    stroke = 1,
+    shape = 4,
+    colour = "grey",
+    alpha = 0.25
+  ) +
+  geom_text(data = . %>% filter(main_groups3 != "NonDistinct"),
+            aes(label = SpeakerID)) +
+  geom_text(
+    data = . %>% filter(main_groups3 == "NonDistinct"),
+    aes(label = SpeakerID),
+    alpha = 0.25
+  ) +
+  scale_shape_manual(values = c(16, 15)) +
+  scale_colour_manual(values = c(c(
+    "#a541f7", "#ffd117"
+  ))) +
+  labs(
+    x = "Dimension 1 (D1)",
+    y = "Dimension 2 (D2)",
+    colour = "Main Groups",
+    shape = "Main Groups",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+    title = "Pairwise Comparison Task",
+       tag = "B"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  guides(fill = "none")
+
+# Save figure
+ggsave(
+  path = here("Figures","Plots","PNG"),
+  dpi = 300,
+  filename = "Figure9.png",
+  width = 2500,
+  height = 1200,
+  units = "px"
+)
+
+ggsave(
+  path = here("Figures","Plots","SVG"),
+  dpi = 300,
+  filename = "Figure9.svg",
+  width = 8,
+  height = 3.5,
+  units = "in"
+)
+```
+
+Similarly, @fig-compare-speed-pitch-FCPC compares D2 from the Free
+Classification on the left and the Pairwise Rating task on the right.
+The figure uses different point types/colours to identify speakers with
+different speed and pitch (Figure 8 from the manuscript). Slow, but
+high-pitched, speakers are positioned (pink circles) differently across
+the spaces. In the free classification space they are grouped more with
+the other slow speakers (in blue) than with the other higher pitched
+speakers (dark pink squares). In the pairwise comparison space, by
+contrast, the high-pitched speakers are consistently grouped together
+(i.e. the pink circles are with the pink squares - except for speaker
+2). While the fast and high pitch speakers, and slow and lower pitch
+speakers, are perceptually distinct in both tasks, the slow and high
+pitch speakers are less stable.
+
+Other than the slow and higher pitch speakers, however, the same speaker
+groups emerge across both tasks. Slow speakers are grouped together in
+the bottom of both tasks, and fast and high speakers are grouped
+together in the top left of both tasks.
+
+```{r compare-speed-pitch-across-tasks}
+#| label: fig-compare-speed-pitch-FCPC
+#| fig.cap: | 
+#|  Comparing the position of perceptually slow and high pitch 
+#|  speakers within the MDS space from the Free Classification task 
+#|  and the space from Sheard et al.  Cutoffs mapped are from the regression tree predicting D2 scores from the Free Classification MDS space. 
+  
+visualisation_df %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.35
+  ) +
+  geom_point(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) != "Fast.Low"),
+    aes(
+      shape = interaction(speed_tree2, pitch_tree2),
+      colour = interaction(speed_tree2, pitch_tree2)
+    ),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) == "Fast.Low"),
+    aes(
+      shape = interaction(speed_tree2, pitch_tree2),
+      colour = interaction(speed_tree2, pitch_tree2)
+    ),
+    size = 6,
+    stroke = 1,
+    alpha = 0.25
+  ) +
+  geom_text(data = . %>% filter(interaction(speed_tree2, pitch_tree2) !=
+                                  "Fast.Low"),
+            aes(label = SpeakerID)) +
+  geom_text(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) == "Fast.Low"),
+    aes(label = SpeakerID),
+    alpha = 0.25
+  ) +
+  scale_shape_manual(values = c(18, 15, 8, 4)) +
+  scale_colour_manual(values = c(c("#f0496a", "pink", "#09c9c3", "grey"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+    title = "Free Classification Task",
+    tag = "A"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  guides(shape = "none",
+         colour = "none") +
+  visualisation_df %>%
+  ggplot(aes(x = D1_PW, y = D2_PW)) +
+  geom_point(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) != "Fast.Low"),
+    aes(
+      shape = interaction(speed_tree2, pitch_tree2),
+      colour = interaction(speed_tree2, pitch_tree2)
+    ),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) == "Fast.Low"),
+    aes(
+      shape = interaction(speed_tree2, pitch_tree2),
+      colour = interaction(speed_tree2, pitch_tree2)
+    ),
+    size = 6,
+    stroke = 1,
+    alpha = 0.25
+  ) +
+  geom_text(data = . %>% filter(interaction(speed_tree2, pitch_tree2) !=
+                                  "Fast.Low"),
+            aes(label = SpeakerID)) +
+  geom_text(
+    data = . %>% filter(interaction(speed_tree2, pitch_tree2) == "Fast.Low"),
+    aes(label = SpeakerID),
+    alpha = 0.25
+  ) +
+  scale_shape_manual(values = c(18, 15, 8, 4)) +
+  scale_colour_manual(values = c(c("#f0496a", "pink", "#09c9c3", "grey"))) +
+  labs(
+    x = "Dimension 1 (D1)",
+    y = "Dimension 2 (D2)",
+    colour = "Main Groups",
+    shape = "Main Groups",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+    title = "Pairwise Comparison Task",
+    tag = "B"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  guides(fill = "none")
+
+ggsave(
+  path = here("Figures", "Plots", "PNG"),
+  dpi = 300,
+  filename = "Figure10.png",
+  width = 2500,
+  height = 1200,
+  units = "px"
+)
+
+ggsave(
+  path = here("Figures", "Plots", "SVG"),
+  dpi = 300,
+  filename = "Figure10.svg",
+  width = 8,
+  height = 3.5,
+  units = "in"
+)
+```
+
+# Testing pre-registered correlations {#sec-testing-pre-registered-correlations}
+
+This section presents the correlations that were pre-registered for this
+analysis. @fig-correlogram-summary shows a summary of the correlations
+between Dimensions 1 and 2 and speakers' leader-lagger scores, their BVC
+scores, their articulation rate, creak proportion, and their mean
+pitch.[^3]
+
+[^3]: The measure of creak proportion is from participants' whole QB
+    monologue and is therefore an indicator of their overall creakiness,
+    not a measure of creak presence in the stimuli.
+
+The results of the regression trees and random forests are upheld in
+that Leader Lagger scores significantly correlate with Dimension 1
+scores, and Articulation rate significantly correlates with Dimension 2
+scores. However, unlike the regression trees and random forest, these
+pairwise correlations do not give us a sense of how the different
+variables relate to one another in differentiating between speakers in
+the perceptual space (e.g., once fast speakers are accounted for,
+Leader-Lagger scores correlate more strongly with Dimension 1).
+
+```{r}
+#| label: fig-correlogram-summary
+#| fig-cap: |
+#|   Summary correlogram showing pre-registered correlations. Values in the 
+#|   lower diagonal represent correlation co-efficients, while values in the 
+#|   upper diagonal represent p-values.
+
+columns <-
+  c(
+    "LeaderLaggerScore",
+    "BackVowelScore",
+    "ArticRate",
+    "MeanPitch2",
+    "CreakProp",
+    "Rotated_D1_FC",
+    "Rotated_D2_FC"
+  )
+
+
+correlogram1 <- regression_df %>%
+  as_tibble() %>%
+  select(all_of(columns))
+
+correlogram_function(correlogram1)
+```
+
+# The role of the leader-lagger continuum when listeners are explicitly using social labels {#sec-the-role-of-the-leader-lagger-continuum-when-listeners-are-explicitly-using-social-labels}
+
+As MDS is a dimension-reduction technique, it is currently unclear
+whether the differentiation between laggers and slow leaders in the
+perceptual space is a byproduct of the space condensing the different
+approaches to grouping and labelling speakers (i.e., speech versus
+social), or a meaningful perceptual distinction.
+
+To investigate this, we apply the analyses as detailed in
+@sec-MDS-analysis and @sec-label-PCA-full to the subset of the data in
+which listeners specifically use social labels. This subsection:
+
+-   Applies MDS to the social data subset
+
+    -   Applies the same dimension selection and random-start procedure
+        in the MDS
+
+-   Rotates the best-fitting MDS to align with the space reported for
+    the full data set
+
+-   Applies a Label PCA to the social data subset
+
+-   Predicts the rotated D1 and D2 scores for the social data subset
+    with regression trees, with the same independent variables as
+
+    -   It also explores D2 further in response to inconsistent results
+        across the regression trees
+
+## Determine number of dimensions for the social data subset
+
+Like @fig-mds-dim, @fig-mds-dim-social suggests we need at least one
+dimension, with the black cross sitting somewhat higher than the null
+distribution for two dimensions. As @fig-mds-dim-social indicates that
+two dimensions is not too few for this dataset, we proceed with two
+dimensions for the analysis in this section.
+
+```{r}
+#| label: fig-mds-dim-social
+#| fig.cap: |
+#|   Boxplots depict stress reduction as additional dimensions are added for
+#|   bootstrapped samples (red) and permuted samples (blue). Stress reduction in
+#|   the experimental data is depicted by black crosses.
+set.seed(10)
+social_test <- mds_test(
+  df_social,
+  n_boots = 100,
+  n_perms = 100,
+  test_dimensions = 5,
+  mds_type = "mspline",
+  spline_degree = 3,
+  spline_int_knots = 5
+)
+
+plot_mds_test(social_test) +
+  labs(y = "Reduction in Stress",
+       x = "Number of Dimensions in MDS Analysis",
+       colour = "Test Distribution") +
+  scale_color_manual(values = c("#a788ef", "#ec8e9e"))
+```
+
+## Selecting best-fitting 2D analysis of social subset using random start values
+
+Following @sec-random-start-full, the code chunk below uses our
+social-subset dissimilarity matrix to run 1000 MDS analyses with random
+starts (M-spline MDS analyses, with five knots and third degree
+polynomials). The two-dimensional MDS analysis discussed here is the
+random start solution with the lowest stress value from these 1000 runs.
+
+```{r best-random-start-social}
+# Determine best random start.
+
+set.seed(765)
+
+fit_df_social <- NULL
+for (i in 1:1000)
+  fit_df_social[[i]] <- smacofSym(
+    df_social,
+    ndim = 2,
+    type = "mspline",
+    principal = T,
+    init = "random",
+    spline.degree = 3,
+    spline.intKnots = 5,
+    itmax = 2000
+  )
+ind <- which.min(sapply(fit_df_social, function(x)
+  x$stress))
+fit_df_social <- fit_df_social[[ind]]
+fit_df_social
+```
+
+## Extracting speaker scores for social MDS
+
+We now extract the position of each speaker in the MDS space and join
+them with production information from the QuakeBox corpus.
+
+```{r MDS-scores-social}
+# Extract the scores for each speaker.
+conf_social <- fit_df_social$conf
+dimensions_social <- as.data.frame(conf_social) %>%
+  rename(D1_social = V1,
+         D2_social = V2) %>%
+  rownames_to_column(var = "Speaker")
+```
+
+### Rotate to align with full data MDS
+
+The code chunk below again applies procrustes rotation, this time to
+maximally align speakers scores from the social subset MDS to their
+scores from the full data MDS.
+
+```{r procrustes-social-full}
+fit_FC_social_rotated <- procrustes(rotated_FC,
+                                    fit_df_social$conf,
+                                    scores = "sites")
+
+rotated_FC_social <- fit_FC_social_rotated$Yrot %>%
+  as_tibble(.name_repair = "unique") %>%
+  rename(Rotated_D1_FC_social = `...1`,
+         Rotated_D2_FC_social = `...2`)
+
+dimensions_social <-
+  dimensions_social %>%  bind_cols(rotated_FC_social)
+
+```
+
+The next code chunk joins the rotated D1 and D2 scores with our other
+measures.
+
+```{r join-scores-data-social}
+# Join extracted scores with other data frames
+QB1_scores_38 <- QB1_scores_38 %>%
+  right_join(dimensions_social, by = c("SpeakerID" = "Speaker"))
+
+label_df_social2 <- label_df_social %>%
+  mutate(SpeakerID = as.character(SpeakerID)) %>%
+  right_join(dimensions_social, by = c("SpeakerID" = "Speaker")) 
+```
+
+## Social Label PCA
+
+To see which label categories increase or decrease as the rotated social
+D1/D2 scores increase or decrease, we again implemented Principal
+Component Analysis (PCA). In this PCA the input data were D1/D2 scores
+and the proportion each social Level 1 label category (the most
+specific) was used to describe each stimuli (categories used by \<10% of
+total participants were excluded).
+
+```{r PCA-data-wrangling-social}
+# I filtered out labels used by less than 10% of the total participants
+# Then with the remaining labels calculated the proportion of labels for each
+# participant that were from a particular category (e.g., 25% of their social
+# labels referred to 'low SES')
+label_test_social <- label_df_social2 %>%
+  group_by(label_category1) %>%
+  mutate(nParticipant = n_distinct(workerId)) %>%
+  filter(nParticipant >= 12) %>%
+  group_by(SpeakerID) %>%
+  mutate(ParticipantTotal = n_distinct(workerId)) %>%
+  group_by(SpeakerID, ParticipantTotal, label_category1) %>%
+  summarise(label_count = n(),
+            label_prop = label_count / first(ParticipantTotal) * 100) %>%
+  ungroup() %>%
+  select(SpeakerID, label_category1, label_prop) %>%
+  distinct() %>%
+  pivot_wider(id_cols = SpeakerID,
+              names_from = label_category1,
+              values_from = label_prop)
+
+# The 0 is for NAs where a category wasn't used at all for a speaker
+# (i.e., 0% of their labels refer to a particular category)
+label_test_social[is.na(label_test_social)] <- 0
+label_names <- label_test_social %>%
+  select(-SpeakerID) %>%
+  colnames()
+
+label_PCA_social <- label_test_social %>%
+  right_join(QB1_scores_38, "SpeakerID") %>%
+  ungroup() %>%
+  select(all_of(label_names),
+         Rotated_D1_FC_social,
+         Rotated_D2_FC_social)
+
+speaker <- label_test_social %>%
+  right_join(QB1_scores_38, "SpeakerID") %>%
+  ungroup() %>%
+  select(SpeakerID)
+```
+
+```{r variance-explained-social}
+#| fig-cap: |
+#|   Estimated 95% confidence intervals on the randomised (null)
+#|   distribution and bootstrapped (sampling) distribution of variance explained by each Principal component
+PCA_social <- prcomp(label_PCA_social, scale = T)
+
+PCA_test_social <- pca_test(
+  label_PCA_social,
+  n = 1000,
+  variance_confint = 0.95,
+  loadings_confint = 0.9
+)
+
+plot_variance_explained(PCA_test_social)
+```
+
+### Labels and Dimensions loaded onto PC1
+
+@fig-PC1Loadings-social depicts the variables loaded onto PC1 from the
+social label PCA. The results point to a similar pattern as for the full
+data for Dimension 1, where labels related to perceived socioeconomic
+status and accent strength are most strongly loaded onto PC1 (with
+social Dimension 1 scores). Specifically, the labels *NZ Rural
+(accent)*, *Strong NZ (accent)*, *Low*, *Middle* and *High Socioeconomic
+status* (SES) are the most strongly loaded speech-related labels, with
+*NZ proper* and *British* also marginally meeting our 90% threshold.
+
+The loadings indicate that, as stimuli D1 scores increase, use of *High*
+and *Middle SES, NZ proper and British* labels decreases and use of *Low
+SES*, *strong NZ (*accent) and *rural* labels increases. Dimension 1
+from the social MDS therefore appears to also primarily capture
+perceived **social class** and **accent** **broadness**.
+
+```{r}
+#| label: fig-PC1Loadings-social
+#| fig.cap: |
+#|   Estimated randomised (Null) and bootstrapped (sampling) distribution for 
+#|   index loadings of Principal Component 1 (PC1) after 1000 iterations, with 
+#|   sign of loadings indicated by ‘+’ or ‘−’.
+
+PC1_loadings_social2 <-
+  plot_loadings(PCA_test_social, pc_no = 1) + theme_bw(base_size = 12) + theme(plot.title = element_blank(),
+                                                                               plot.subtitle = element_blank())
+PC1_loadings_social2
+```
+
+### Labels and Dimensions loaded onto PC2
+
+@fig-PC2Loadings-social depicts the variables loaded onto PC2 from the
+social label PCA. The results from PC2 point to a clearer split between
+socioeconomic labels and labels related to age for the social subset
+than for the full dataset. Specifically, labels related to both *Young*
+and *Old* age, are loaded onto label PC2, not just labels related to
+older age (as in @fig-PC2Loadings ). *Friendly* and *NZ Average* also
+meet our 90% threshold. The social label PCA points to speakers labelled
+as younger as being unlikely to also be labelled as older, but perceived
+age is not systematically related to perceived accent strength and
+socioeconomic status. This points to the loading of 'Young' labels onto
+PC1 from the full data label PCA as not being very stable.
+
+```{r}
+#| label: fig-PC2Loadings-social
+#| fig.cap: |
+#|   Estimated randomised (Null) and bootstrapped (sampling) distribution for 
+#|   index loadings of Principal Component 1 (PC1) after 1000 iterations, with 
+#|   sign of loadings indicated by ‘+’ or ‘−’.
+
+
+PC2_loadings_social2 <-
+  plot_loadings(PCA_test_social, pc_no = 2) + theme_bw(base_size = 12) + theme(plot.title = element_blank(),
+                                                                               plot.subtitle = element_blank())
+PC2_loadings_social2
+```
+
+We extract speaker scores form the social PCA.
+
+```{r extract-pc-scores-social}
+coordinates_social <- get_pca_ind(PCA_social)
+
+coordinates_social <- as_tibble(coordinates_social$coord) %>%
+  select(Dim.1, Dim.2) %>%
+  cbind(speaker) %>%
+  rename(SES_Dim = Dim.1,
+         Age_Dim = Dim.2) %>%
+  left_join(QB1_scores_38)
+```
+
+## Regression trees to investigate links between perceptual dimensions and acoustic factors (social subset)
+
+### Predicting social D1 with a regression tree
+
+The following code blocks does some prepatory data wrangling.
+
+```{r rename-variables-social}
+# variable scaling.
+regression_df_social <- coordinates_social %>%
+  mutate(
+    LeaderLaggerScore = scale(PC1_swapped),
+    BackVowelScore = scale(PC2),
+    ArticRate = scale(articulation_rate),
+    MeanPitch2 = scale(pitch_cross_75_500),
+    SpeechRate = scale(speech_rate_update),
+    PhonProp = scale(phonation_prop),
+    PauseProp = scale(pause_prop),
+    PauseTotal = scale(pause_total),
+    PhonTotal = scale(phonation_total),
+    CreakProp = scale(creak_prop),
+    Syllables = scale(syllable_total),
+    Age_Dim = as.numeric(Age_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1, c("LowSES", "Middle", "HighSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5, c("LowSES", "Middle", "HighSES")),
+    Age_Dim_Cat = sd_calculate(Age_Dim, 1, c("Old", "Middle", "YoungFriendly")),
+    Age_Dim_Cat2 = sd_calculate(Age_Dim, 0.5, c("Old", "Middle", "YoungFriendly")),
+  ) 
+
+# Set some cutoffs for visualisation.
+pitch_cutoff <- (-0.15)
+artic_cutoff <- (-0.5)
+artic_cutoff2 <- (-0.11)
+pause_prop_cutoff <- (0.31)
+pause_time_cutoff <- (-0.67)
+PC1_cutoff <- (-0.036)
+PC1_cutoff2 <- (-0.26)
+PC2_cutoff <- (0.74)
+PC2_cutoff2 <- (-0.63)
+
+# set up a data frame for visualisation purposes.
+regression_df_social_vis <- regression_df_social %>%
+  mutate(
+    Age_Dim = as.numeric(Age_Dim),
+    SES_Dim = as.numeric(SES_Dim),
+    SES_Dim_Cat = sd_calculate(SES_Dim, 1, c("LowSES", "Middle", "HighSES")),
+    SES_Dim_Cat2 = sd_calculate(SES_Dim, 0.5, c("LowSES", "Middle", "HighSES")),
+    Age_Dim_Cat = sd_calculate(Age_Dim, 1, c("Old", "Middle", "YoungFriendly")),
+    Age_Dim_Cat2 = sd_calculate(Age_Dim, 0.5, c("Old", "Middle", "YoungFriendly")),
+    artic_tree = case_when(ArticRate < artic_cutoff ~ "Slow", T ~ "Fast"),
+    artic_tree2 = case_when(
+      ArticRate < artic_cutoff ~ "Slow",
+      ArticRate > artic_cutoff2 ~ "Fast",
+      T ~ "Middle"
+    ),
+    pitch_tree = case_when(MeanPitch2 < pitch_cutoff ~ "Low", T ~ "High"),
+    pause_prop_tree = case_when(
+      PauseProp < pause_prop_cutoff ~ "LowPauseProp",
+      T ~ "HighPauseProp"
+    ),
+    BVC_tree = case_when(BackVowelScore < PC2_cutoff ~ "LowBVC", T ~ "HighBVC"),
+    PC1_tree = case_when(LeaderLaggerScore < PC1_cutoff ~ "Lagger", T ~ "Leader"),
+    PC1_tree2 = case_when(
+      LeaderLaggerScore < PC1_cutoff2 ~ "Lagger",
+      LeaderLaggerScore > PC1_cutoff ~ "Leader",
+      T ~ "Middle"
+    ),
+    BVC_tree2 = case_when(BackVowelScore < PC2_cutoff2 ~ "LowBVC2", T ~ "HighBVC2"),
+    BVC_tree3 = case_when(
+      BackVowelScore > PC2_cutoff ~ "HighBVC2",
+      BackVowelScore < PC2_cutoff2 ~ "LowBVC2",
+      T ~ "Middle"
+    ),
+    speed_pause = case_when(
+      artic_tree == "Slow" ~ "Slow",
+      pause_prop_tree == "HighPauseProp" ~ "HighPauseProp",
+      T ~ artic_tree
+    ),
+    PC1_speed_pause = case_when(
+      pause_prop_tree == "HighPauseProp" ~ "HighPauseProp",
+      artic_tree == "Slow" ~ "Slow",
+      T ~ interaction(pause_prop_tree, PC1_tree)
+    ),
+    pitch_speed = interaction(artic_tree, pitch_tree),
+    pause_prop_time_tree = case_when(artic_tree == "Slow" ~ "Slow", T ~
+interaction(pause_prop_tree))
+  )
+```
+
+We now fit the regression tree.
+
+```{r fitting-regression-tree-d1-social}
+set.seed(9)
+
+fit_D1_social <-
+  tree_spec %>% fit(
+    Rotated_D1_FC_social ~
+      BackVowelScore +
+      LeaderLaggerScore +
+      ArticRate +
+      MeanPitch2,
+    data = regression_df_social
+  )
+```
+
+@fig-D1-social depicts the results of the regression tree predicting
+social D1 fit in the code chunk below. Starting with all 38 stimuli, we
+can see that position in leader-lagger continuum is, again, the first
+node in the tree. Speakers who are laggers in the leader-lagger
+continuum with scores below -0.32 (more negative scores = further behind
+in changes) are estimated to have lower D1 scores than speakers with
+scores above -0.32.
+
+Within the leaders, their scores are, again, mediated by speed rate: the
+slower leaders have the highest estimated D1 scores. Slow leaders are
+the speakers who are perceived to sound the most broad and low SES. We
+therefore have additional evidence that the effect of the leader-lagger
+continuum on perceived socioeconomic status is mediated by the broader
+speech context, even when listeners are explicitly using social
+categories to group speakers.
+
+```{r}
+#| label: fig-D1-social
+#| fig-cap: |
+#|   Regression tree predicting social Dimension 1 indicates number of stimuli in
+#|   each node, % the proportion of the total. The number represents the estimated
+#|   D1 scores for speakers in that node.
+
+fit_D1_social %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#a541f7", "#F9A742", "#be4580", "#e66f70",   "#ffd117"),
+    cex = 1
+  )
+```
+
+When we compare the full and social MDS spaces in
+@fig-compare-D1-full-social, we can see that broadly the same
+individuals are perceived as sounding low and high SES. The main change
+is that speakers 29 and 37 are not perceived as sounding as broad in the
+social subset, although they are are still situated closer to the
+leaders than to the other laggers. We can see that the same speakers
+comprise the perceptually high SES groups in both spaces (22, 6, 28, 14,
+18, 11, 35), and almost the same speakers comprise the perceptually low
+SES groups in both spaces (30, 2, 16,17, 31, 32, with 8 becoming more
+perceptually broad in the social subset). Speaker 13 is an outlier slow
+leader in both spaces, and the same fast leaders are grouped with
+perceptually low SES (20, 27, 7, 26) and perceptually high SES speakers
+(21,19,36,1,12) in both spaces. As such, the social differentiation
+between speakers is effectively captured by the full data MDS.
+
+```{r}
+#| label: fig-compare-D1-full-social
+#| fig-cap: |
+#|   The cutoffs in the regression tree predicting D1 scores for the full dataset (right) and social subset (right) mapped onto 
+#|   the rotated MDS spaces. Speakers whose PC1 scores are not 0.5 SD +/- the mean have a lower alpha. 
+
+visualisation_df %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype=SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2,linetype=SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+    geom_point(
+        data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+        size = 6,
+        stroke = 1,
+    alpha=0.15
+    ) +
+    geom_point(
+        data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+        size = 6,
+        stroke = 1,
+    ) +
+  geom_text(aes(label=SpeakerID), alpha=0.5)+
+      scale_fill_manual(values = c(c("#a541f7","#ffd117"))) +
+      scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117","red"))) +
+      labs(
+        x = "Rotated Dimension 1 (D1)",
+        y = "Rotated Dimension 2 (D2)",
+        colour = "LL/Speed",
+        shape = "LL/Speed",
+        fill = "Perceptual Group",
+                linetype = "Perceptual Group",
+                title = "Full data"
+      ) +
+      theme_bw() +
+      coord_fixed() +
+      theme(legend.position = "none", #change legend title font size
+            legend.text = element_text(size = 6))+
+regression_df_social %>%
+  mutate(
+        PC1_tree2 = case_when(LeaderLaggerScore < -0.32 ~ 'Lagger', T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.2) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      PC1_tree2 == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree2, speed_tree)
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype=SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype=SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha=0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_text(aes(label=SpeakerID), alpha=0.5)+
+  scale_fill_manual(values = c(c("#a541f7","#ffd117"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117","red"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "LL/Speed",
+    shape = "LL/Speed",
+    fill = "Perceptual Group",
+        linetype = "Perceptual Group",
+    title = "Social Subset"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right", #change legend title font size
+        legend.text = element_text(size = 6))
+```
+
+#### Confirming relationship between social D1 and PC1
+
+The code chunks below confirm that, as with the full data set, the
+social Label PC1 scores themselves are also predicted by the same
+variables, with some minor adjustments to the cutoff values for the
+leader-lagger scores and speed.
+
+```{r}
+#| label: fig-perceptual-broadness-social
+#| fig-cap: |
+#|   Regression tree predicting social PC1 scores indicates number of
+#|   stimuli in each node, % the proportion of the total. The number represents the
+#|   estimated PC1 scores for speakers in that node.
+   
+fit_Dim_SES <-
+  tree_spec %>%
+  fit(SES_Dim ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df_social)
+
+fit_Dim_SES %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#ffd117", "#F9A742", "#be4580", "#e66f70", "#a541f7"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+@fig-compare-PC1-full-social shows the overall interpretation of leaders
+and laggers remains stable for the social data set regardless of whether
+we use the cutoffs from the trees predicting D1 or PC1 for the social
+subset: the perceptually high SES speaker group consists predominantly
+of the same laggers, and the perceptually low SES group consists
+entirely of the same (mostly slow) leaders.
+
+```{r}
+#| label: fig-compare-PC1-full-social
+#| fig-cap: |
+#|   The leader-lagger and articulation cutoffs in the regression trees
+#|   predicting scores for the D1 scores (left) and Label PC1 scores (right) for 
+#|   the social data subset mapped onto the rotated MDS spaces. Speakers whose 
+#|   PC1 scores are not 0.5 SD +/- the mean have a lower alpha.
+regression_df_social %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.32 ~ 'Lagger', T ~ "Leader"),
+    speed_tree = case_when(ArticRate < (-0.2) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      PC1_tree == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree, speed_tree)
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_text(aes(label = SpeakerID), alpha = 0.5) +
+  scale_fill_manual(values = c(c("#a541f7", "#ffd117"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117", "red"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "LL/Speed",
+    shape = "LL/Speed",
+    fill = "Perceptual Group",
+    title = "D1 score cutoffs"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "none", #change legend title font size
+        legend.text = element_text(size = 6)) +
+  regression_df_social %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.22 ~ 'Lagger', T ~ "Leader"),
+    speed_tree3 = case_when(ArticRate < (-0.18) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      PC1_tree == "Lagger" ~ "Lagger",
+      T ~ interaction(PC1_tree, speed_tree3)
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat != "Middle"),
+    aes(fill = SES_Dim_Cat, linetype = SES_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(fill = SES_Dim_Cat2, linetype = SES_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(SES_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_text(aes(label = SpeakerID), alpha = 0.5) +
+  scale_fill_manual(values = c(c("#a541f7", "#ffd117"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#ffd117", "red"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "LL/Speed",
+    shape = "LL/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group",
+    title = "Label PC cutoffs"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right", #change legend title font size
+        legend.text = element_text(size = 6))
+```
+
+This is further upheld in the results of a random forest procedure
+predicting PC1; the importance of the leader-lagger continuum comes out
+even more strongly for PC1 scores than it does for D1 scores. In other
+words, the predictive power of the leader-lagger continuum is strongest
+when predicting the use of labels related to perceived socioeconomic
+status and accent broadness (PC1), which is systematically related to a
+speaker's positive along Dimension 1.
+
+```{r}
+#| label: fig-rf-PC1-social
+#| fig.cap: |
+#|   Variable importance from random forest predicting Label PC1.
+set.seed(2)
+
+PC1_social_rf_fit <-
+  random_f %>%
+  fit(SES_Dim ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df_social)
+
+PC1_social_rf_fit %>%
+  extract_fit_engine() %>%
+  vip() +
+  theme_bw(base_size = 12) +
+  labs(y = "Importance (Random Forest)")
+```
+
+### Predicting Social D2 with a regression tree
+
+@fig-D2-social depicts the results of the regression tree predicting
+social D2 fit in the code chunk below. In contrast to D1, D2 for the
+social subset is not stably predicted by speed and pitch as D2 was for
+the full data set. Instead, the Back Vowel Configuration is represented
+twice in the tree.
+
+```{r fitting-regression-tree-d2}
+#| label: fig-D2-social
+#| fig-cap: |
+#|   Regression tree predicting Dimension 2. n indicates number of stimuli in each
+#|   node, % the proportion of the total. The number represents the estimated D2
+#|   scores for speakers in that node.
+set.seed(9)
+
+fit_D2_social <-
+  tree_spec %>%
+  fit(
+    Rotated_D2_FC_social ~
+      BackVowelScore +
+      LeaderLaggerScore +
+      ArticRate +
+      MeanPitch2,
+    data = regression_df_social
+  )
+
+fit_D2_social %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+For the sake of comparison, @fig-d2-social-full-cutoffs maps the same
+cutoffs from onto the MDS spaces from the full data set (also shown in
+@fig-perceptual-speed-pitch ) and the social subset. We can see that
+some of the slow speakers (8, 32) have moved more into the 'Young'
+perceptual space from the 'slow' perceptual space, while some of the
+fast/high speakers (20 and 26) have moved from the 'Fast/high'
+perceptual space into the 'Old' perceptual space (29 only remains in the
+'Young' perceptual space but has similarly moved along D2). There are
+also some fast and low speakers who have moved from the 'Fast/high'
+perceptual space into the 'old' perceptual space (15, 37, 3). From this,
+it is clear that perceptual age is being informed by something other
+than (or in addition to) the combination of speed and pitch that
+differentiates between speakers acoustically.
+
+```{r}
+#| label: fig-d2-social-full-cutoffs
+#| fig.cap: |
+#|   The cutoffs in the regression trees predicting D2 scores for the full data
+#|   mapped onto the rotated MDS spaces for the full dataset (left) and social
+#|   subset (right)
+   
+visualisation_df %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 == "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_fill_manual(values = c("#f0496a", "#09c9c3")) +
+  scale_colour_manual(values = c("#f0496a", "#F9A742", "#09c9c3", "yellow")) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  guides(shape = "none",
+         colour = "none") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  regression_df_social %>%
+  mutate(
+    speed_tree = case_when(ArticRate < (-0.11) ~ "Slow", T ~ "Fast"),
+    pitch_tree2 = case_when(MeanPitch2 < (0.15) ~ "Low", T ~ "High"),
+    pitch_speed_tree = case_when(
+      speed_tree == "Slow" ~ "Slow",
+      speed_tree != "Slow" &
+        pitch_tree2 == "High" ~ "FastHigh",
+      T ~ "FastLow"
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat != "Middle"),
+    aes(fill = Age_Dim_Cat, linetype = Age_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(fill = Age_Dim_Cat2, linetype = Age_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 == "Middle"),
+    aes(shape = pitch_speed_tree,
+        colour = pitch_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_linetype_manual(values = c("dashed", "dotdash")) +
+  scale_fill_manual(values = c("#8586fc", "#ff8164")) +
+  scale_colour_manual(values = c("#f0496a", "#F9A742", "#09c9c3", "yellow")) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 6))
+```
+
+While it is possible that the back-vowel configuration (BVC) is
+contributing to perceived age, when we map the cutoffs from the
+regression tree in @fig-D2-social onto the MDS spaces from the full and
+social data sets in @fig-d2-social-full-BVC-cutoffs, there is not a
+discernible pattern. Most of the speakers in the perceptually 'old'
+group have BVC scores in *middle* of its range, not markedly higher or
+lower scores. Moreover, there are almost as many speakers with positive
+as negative scores (again classified as scores 0.5 SD +/- the mean) in
+the perceptually young/friendly group. It is therefore difficult to
+meaningfully interpret the space based on speakers' Back-Vowel
+Configuration scores.
+
+```{r}
+#| label: fig-d2-social-full-BVC-cutoffs
+#| fig.cap: |
+#|  The cutoffs in the regression trees predicting D2 scores for the social
+#|  data mapped onto the rotated MDS spaces for the full dataset (left) and social
+#|  subset (right)
+visualisation_df %>%
+  mutate(
+    BVC_tree = case_when(
+      BackVowelScore < (-0.63) ~ "Negative" ,
+      BackVowelScore >= 0.74 ~ "Positive",
+      T ~ "Middle"
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(shape = BVC_tree,
+        colour = BVC_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 == "Middle"),
+    aes(shape = BVC_tree,
+        colour = BVC_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_fill_manual(values = c(c("#f0496a", "#09c9c3"))) +
+  scale_colour_manual(values = c(c("#8586fc", "#9eee95", "#ff8164", "yellow"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "BVC Score",
+    shape = "BVC Score",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  guides(shape = "none",
+         colour = "none") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  regression_df_social %>%
+  mutate(
+    BVC_tree = case_when(
+      BackVowelScore < (-0.63) ~ "Negative" ,
+      BackVowelScore >= 0.74 ~ "Positive",
+      T ~ "Middle"
+    )
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat != "Middle"),
+    aes(fill = Age_Dim_Cat, linetype = Age_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(fill = Age_Dim_Cat2, linetype = Age_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(shape = BVC_tree,
+        colour = BVC_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 == "Middle"),
+    aes(shape = BVC_tree,
+        colour = BVC_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_linetype_manual(values = c("dashed", "dotdash")) +
+  scale_fill_manual(values = c(YoungFriendly = "#ff8164", Old = "#8586fc")) +
+  scale_colour_manual(values = c(c("#8586fc", "#9eee95", "#ff8164", "yellow"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "BVC Score",
+    shape = "BVC Score",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 6))
+```
+
+#### Relationship between social D2 and PC2, and D2 and PC2 from full data set
+
+Moreover, when we predict speaker's label PC2 scores from the social
+data PCA with the same regression tree procedure in @fig-PC2-social, the
+predictors are not stable. Instead, articulation rate emerges as the
+most important predictor, mediated by speakers' leader-lagger scores.
+
+```{r}
+#| echo: false
+#| label: fig-PC2-social
+#| fig-cap: |
+#|  Regression tree predicting PC2 for the social subset. n indicates
+#|  number of stimuli in each node, % the proportion of the total. The number
+#|  represents the estimated PC2 scores for speakers in that node.
+
+fit_age_dim <-
+  tree_spec %>%
+  fit(Age_Dim ~
+        BackVowelScore +
+        LeaderLaggerScore +
+        ArticRate +
+        MeanPitch2,
+      data = regression_df_social)
+
+fit_age_dim %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+When the cutoffs from @fig-PC2-social are mapped onto the MDS spaces
+from the full and social data in @fig-d2-social-full-cutoffs-2 there is
+a slightly more coherent picture, in that all the very slow speakers,
+except speaker 8, are concentrated in the perceptually old group. Most
+of the perceptually young/friendly group is comprised of fast laggers,
+and most fast leaders are concentrated in the perceptually old group.
+
+```{r}
+#| label: fig-d2-social-full-cutoffs-2
+#| fig.cap: |
+#|    The cutoffs in the regression trees predicting PC2 scores for the full
+#|    data mapped onto the rotated MDS spaces for the full dataset (left) and social
+#|    subset (right)
+regression_df %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.036 ~ 'Lagger', T ~ "Leader"),
+    speed_tree2 = case_when(ArticRate < (-0.5) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      speed_tree2 == "Slow" ~ "Slow",
+      speed_tree2 != "Slow" &
+        PC1_tree == "Lagger" ~ "FastLagger",
+      T ~ "FastLeader"
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC, y = Rotated_D2_FC)) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat != "Middle"),
+    aes(fill = Speed_Dim_Cat, linetype = Speed_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(fill = Speed_Dim_Cat2, linetype = Speed_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Speed_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_fill_manual(values = c(c("#f0496a", "#09c9c3"))) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#09c9c3", "yellow"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  guides(shape = "none",
+         colour = "none") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 6)) +
+  regression_df_social %>%
+  mutate(
+    PC1_tree = case_when(LeaderLaggerScore < -0.036 ~ 'Lagger', T ~ "Leader"),
+    speed_tree2 = case_when(ArticRate < (-0.5) ~ "Slow", T ~ "Fast"),
+    PC1_speed_tree = case_when(
+      speed_tree2 == "Slow" ~ "Slow",
+      speed_tree2 != "Slow" &
+        PC1_tree == "Lagger" ~ "FastLagger",
+      T ~ "FastLeader"
+    ),
+  ) %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat != "Middle"),
+    aes(fill = Age_Dim_Cat, linetype = Age_Dim_Cat),
+    alpha = 0.35
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(fill = Age_Dim_Cat2, linetype = Age_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 == "Middle"),
+    aes(shape = PC1_speed_tree,
+        colour = PC1_speed_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_linetype_manual(values = c("dashed", "dotdash")) +
+  scale_fill_manual(values = c(YoungFriendly = "#ff8164", Old = "#8586fc")) +
+  scale_colour_manual(values = c(c("#a541f7", "#F9A742", "#09c9c3", "yellow"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 6))
+```
+
+It is, therefore, possible that leaders in change are perceived to sound
+older than fast laggers in change (along with very slow speakers).
+Counter-intuitively, the association of (slow) leaders with rurality may
+also carry connotations of social (rather than linguistic) conservatism.
+If laggers are less salient than leaders, it could be that rather than
+sounding explicitly 'young', such speakers do not carry association with
+conservatism and are therefore perceived as younger than leaders. More
+recent analyses of New Zealand English data also point to some reversals
+in the realisations of diphthongs [e.g., @RN814], meaning our 'leaders'
+may indeed sound older to our comparatively young listener sample.
+
+#### Alternate interpretations of social D2
+
+While it is possible that leaders and laggers are associated with
+different ages in addition to socioeconomic status, it is important to
+note that this association is not very strong, or stable within the MDS
+space (otherwise we would expect a stronger overlap between PC2 and D2,
+as observed for both the full data set, and PC1/D1 in both the full and
+social data). It is also worth considering the possibility that
+perceived age is associated with other independent variables not
+considered in the main analysis. For example, if we incorporate a
+measure of pause usage in the stimuli in the regression tree predicting
+D2 in the code chunk below, it emerges instead of the Back Vowel
+Configuration in @fig-PC2-social-2 (although the regression tree
+predicting PC2 remains unchanged).
+
+```{r regression-tree-D2-explore}
+#| label: fig-PC2-social-2
+#| fig-cap: |
+#|   Regression tree predicting PC2 for the social subset, including a
+#|   measure of pause useage. n indicates number of stimuli in each node, % the
+#|   proportion of the total. The number represents the estimated D2 scores for
+#|   speakers in that node.
+set.seed(9)
+
+fit_D2_social2 <-
+  tree_spec %>%
+  fit(
+    Rotated_D2_FC_social ~
+      BackVowelScore +
+      LeaderLaggerScore +
+      ArticRate +
+      PauseProp +
+      MeanPitch2,
+    data = regression_df_social
+  )
+
+fit_D2_social2 %>%
+  extract_fit_engine() %>%
+  rpart.plot(
+    roundint = FALSE,
+    extra = 101,
+    box.palette = c("#09c9c3", "#8BDAB2", "#F9A742", "#F87233", "#f0496a"),
+    cex = 1,
+    xflip = T
+  )
+```
+
+One possible interpretation of the second dimension in the social subset
+is shown in @fig-d2-social-full-cutoffs-3; the perceptually old group is
+comprised primarily of speakers who are either very slow or have a high
+use of pauses. Speakers who have a low use of pauses are concentrated in
+the perceptually young/friendly group.
+
+```{r}
+#| label: fig-d2-social-full-cutoffs-3
+#| fig.cap: |
+#|  The first cutoffs in the regression trees predicting D2 and PC2 scores 
+#|  for the social data mapped onto the rotated MDS space. 
+    
+regression_df_social_vis %>%
+  ggplot(aes(x = Rotated_D1_FC_social, y = Rotated_D2_FC_social)) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat == "YoungFriendly"),
+    aes(fill = Age_Dim_Cat, linetype = Age_Dim_Cat),
+    alpha = 0.15
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat2 == "YoungFriendly"),
+    aes(fill = Age_Dim_Cat2, linetype = Age_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat2 == "Old"),
+    aes(fill = Age_Dim_Cat2, linetype = Age_Dim_Cat2),
+    alpha = 0.15
+  ) +
+  geom_encircle(
+    data = . %>% filter(Age_Dim_Cat == "Old"),
+    aes(fill = Age_Dim_Cat, linetype = Age_Dim_Cat),
+    alpha = 0.15
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 != "Middle"),
+    aes(shape = pause_prop_time_tree,
+        colour = pause_prop_time_tree),
+    size = 6,
+    stroke = 1,
+  ) +
+  geom_point(
+    data = . %>% filter(Age_Dim_Cat2 == "Middle"),
+    aes(shape = pause_prop_time_tree,
+        colour = pause_prop_time_tree),
+    size = 6,
+    stroke = 1,
+    alpha = 0.35
+  ) +
+  geom_text(aes(label = SpeakerID)) +
+  scale_fill_manual(values = c(YoungFriendly = "#ff8164", Old = "#8586fc")) +
+  scale_colour_manual(values = c(c("#08c370", "#f94b5e",  "#09c9c3", "yellow"))) +
+  labs(
+    x = "Rotated Dimension 1 (D1)",
+    y = "Rotated Dimension 2 (D2)",
+    colour = "Pitch/Speed",
+    shape = "Pitch/Speed",
+    fill = "Perceptual Group",
+    linetype = "Perceptual Group"
+  ) +
+  theme_bw() +
+  coord_fixed() +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 6))
+```
+
+The combined evidence points to a stable association between the
+leader-lagger continuum and perceived socioeconomic status, mediated by
+articulation rate. There is also a stable relationship between perceived
+and actual speed and pitch, with fast and pitch speakers particularly
+perceptually distinctive. The available evidence also indicates that the
+differentiation between fast/slow and low/high pitch speakers is driven
+primarily by the acoustic features listeners heard, rather than a strong
+association between these measures and age (within a single age
+category). While we cannot entirely rule out an association between
+speed, the leader-lagger vowels and perceived age, other factors are
+likely contributing to this perceptual distinction.
+
+# Packages used
+
+```{r cite-packages, echo=FALSE}
+cite_packages(output = "paragraph",
+              pkgs = "Session",
+              out.dir = ".")
+```

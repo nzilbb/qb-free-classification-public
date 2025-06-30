@@ -1,0 +1,496 @@
+---
+title: "Generating similarity matrices for supplementary materials"
+author:   
+  - name: Elena Sheard
+    email: elena.sheard@canterbury.ac.nz
+    orcid: 0000-0003-1271-365X
+    affiliations:
+        - ref: nzilbb
+  - name: Jen Hay
+    email: jen.hay@canterbury.ac.nz
+    orcid: 0000-0001-8127-0413
+    affiliations:
+        - ref: nzilbb
+        - ref: uc-ling
+  - name:
+      given: Joshua
+      family: Wilson Black
+    email: joshua.black@canterbury.ac.nz
+    orcid: 0000-0002-8272-5763
+    affiliations:
+        - ref: nzilbb
+  - name: Robert Fromont
+    email: robert.fromont@canterbury.ac.nz
+    orcid: 0000-0001-5271-5487
+    affiliations:
+        - ref: nzilbb
+  - name: Lynn Clark
+    email: lynn.clark@canterbury.ac.nz
+    orcid: 0000-0003-3282-6555
+    affiliations:
+        - ref: nzilbb
+        - ref: uc-ling
+affiliations:
+  - id: nzilbb
+    name: New Zealand Institute of Language, Brain and Behaviour, University of Canterbury
+    city: Christchurch
+    country: New Zealand
+  - id: uc-ling
+    name: Department of Linguistics, University of Canterbury
+    city: Christchurch
+    country: New Zealand
+date: today
+lightbox: auto
+format: 
+  html:
+    embed-resources: true
+    self-contained: true
+    theme: flatly
+    toc: true
+    toc-expand: true
+    toc-location: right
+    smooth-scroll: true
+    code-summary: "Click here to view code."
+    title-block-banner: '#95A044'
+    title-block-banner-colour: white
+    anchor-sections: true
+    number-sections: true
+    cap-location: margin
+    fig-responsive: true
+    lang: 'en-US'
+    execute:
+      warning: false
+    code-fold: true
+  pdf: default
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{css set-css, echo=FALSE}
+.title {
+  color: white;
+}
+```
+
+# Overview
+
+This file generates the similarity matrices used in the supplementary
+materials for the manuscript "Exploring the social meaning of the
+'leader-lagger vowels' in New Zealand English". The materials can be
+viewed \[here\].
+
+This script generates similarity matrices for MDS analysis for (a) the
+full data set in @sec-full-data-set-matrix and (b) a subset of the data
+set where listeners used social labels to make their speaker groups in
+@sec-only-social-labels-matrix
+
+# Load libraries and data
+
+The chunk below loads the libraries used in this script.
+
+```{r load-libraries}
+#| warning: false
+# Data wrangling
+library(tidyverse)
+library(tidyr)
+library(data.table)
+
+# Other
+library(here) # localised file paths
+library(gt) # tables
+```
+
+-   The next chunk loads:
+
+    -    The anonymised results from the online free classification task
+
+    -   A data frame that contains all possible pairwise combinations of
+        the 38 stimuli, with IDs for each pair (ordered and unordered).
+        This data frame is used to generate the similarity matrices.
+
+```{r load-data}
+date <- '250228'
+
+# Load filtered and cleaned data set 
+df <-
+  read_rds(here('Data',
+                'FC_filtered_cleaned_anon_250228.rds'))
+
+# Load dataframe containing all possible pairwise combinations
+  # of the 38 stimuli, with IDs for each pair
+# Use to create similarity matrix
+combinations_anon <-
+  read_rds(here("Data", "FC_combinations_anon_250228.rds"))
+
+```
+
+@tbl-df-columns describes the columns in the data frame. "Reclassified"
+refers to the tidied free-text responses.
+
+```{r df-columns}
+#| echo: false
+#| label: tbl-df-columns
+#| tbl-cap: "Overview of pre-processed dataframe"
+
+column_descriptions_initial <- c(
+  "Anonymised participant (listener) code",
+  "Anonymised speaker code",
+  "Task iteration (1:3, Representing each time listeners made groups)",
+  "Represents number of the group each speaker was placed into by listener (i.e., 1 = first group made, 2 = second group made)",
+  "Initial, least broad label category used to describe the group (e.g., 'young', 'old')",
+  "Grouping for initial label categories (e.g., 'Age')",
+  "Most broad label category ('social' versus 'speech' labels versus neither)",
+  "Listener gender (reclassified)",
+  "Listener ethnicity (reclassified)",
+  "Listener ethnicity (binary distinction between Maori versus non-Maori)",
+  "Where listener grew up (reclassified)",
+  "Where listener currently lives (reclassified)",
+  "Listener occupation (reclassified)"
+)
+
+prefilter_table <- tibble(
+  Name = names(df),
+  Description = column_descriptions_initial
+)
+
+prefilter_table <- prefilter_table %>% 
+  gt() %>% 
+  tab_header(
+    title = "Variables before matrix generation"
+  )
+
+prefilter_table
+```
+
+# Full data set matrix {#sec-full-data-set-matrix}
+
+## Filter data frames {#sec-filter-data-frames}
+
+The next blocks:
+
+-   Select relevant columns
+
+-   Exclude participants who:
+
+    -   Used labels unrelated to speech or social characteristics
+
+    -   Made more than 11 groups within the same broad category for a
+        single iteration of the task (i.e., did not make groups)
+
+-    Save corresponding data frames
+
+```{r subset_df}
+# subset relevant columns
+fcdf_full <- df %>%
+  select(
+    SpeakerID,
+    ratings,
+    workerId,
+    trial_index,
+    label_category1,
+    label_category2,
+    label_category3
+  )
+
+# Save unfiltered df
+file_name_labels_unfiltered <-
+  paste0('fcdf_full_unfiltered_anon_', date, '.rds', sep = '')
+
+write_rds(fcdf_full,
+          here('Data', file_name_labels_unfiltered))
+```
+
+```{r filter-participants}
+# Identify participants who made groups based on colours or clip topics 
+exclude_IDs <- fcdf_full %>%
+  group_by(workerId, label_category1) %>%
+  summarise(n_labels = n()) %>%
+  filter(label_category1 == "Colours" & n_labels > 0 |
+           label_category1 == "ClipTopic" & n_labels > 0,) %>%
+  pull(unique(workerId))
+
+# Identify participants who made more than 10 groups within the same broad label category, for a single iteration of the task
+exclude_IDs2 <- fcdf_full %>%
+ filter(!workerId %in% exclude_IDs) %>% 
+  group_by(workerId, trial_index, label_category3) %>%
+  summarise(n_groups = n_distinct(ratings)) %>%
+  filter(n_groups > 11
+         )%>% 
+  pull(unique(workerId))
+
+# Filter excluded participants
+fcdf_full_filt <- fcdf_full %>%
+  filter(!workerId %in% c(exclude_IDs, exclude_IDs2))
+
+# Check participants who have been excluded 
+fcdf_excluded <- fcdf_full %>%
+  filter(workerId %in% c(exclude_IDs, exclude_IDs2))
+
+# Save filtered dataframe 
+file_name_labels <-
+  paste0('fcdf_full_anon_', date, '.rds', sep = '')
+
+write_rds(fcdf_full_filt,
+          here('Data', file_name_labels))
+```
+
+## Calculate proportions
+
+We need to calculate the number of times each pair of speakers have been
+placed in the same group as a proportion of the times they **could**
+have been placed in the same group (as not all participants will be
+evaluating all possible combinations).
+
+The code below:
+
+-   Calculates all possible combinations of the stimuli in each trial
+    for each participant
+
+-   Then joins these combinations with previously generated combination
+    IDs (same ID for stimuli pairs regardless of stimuli order in each
+    pair)
+
+-   Groups the combinations by participant, trial ID (each participant
+    completes three trials) and combination ID (bloc) and selects the
+    top row of this group (each bloc will come up twice because there
+    are two possible stimuli orders per combination ID)
+
+-   Joins these combinations with the group ratings from the results
+    twice (ratings for Stimuli 1 and for Stimuli 2)
+
+-   Indicate whether the rating (grouping) for Stimuli 1 is the same as
+    for Stimuli 2 (i.e., were they placed in the same group)
+
+-   Calculate number of times each combination has occurred across all
+    participants, then the proportion of those times that they have been
+    placed in the same group
+
+`crossing()` can be used instead of `expand()` but the latter is more
+efficient (i.e., it is affected by `group_by()`).
+
+```{r calculate-proportions}
+# Subset data frrame 
+fcdf_full_subset <- fcdf_full_filt %>%
+  select(SpeakerID, ratings, workerId, trial_index)
+
+fc_proportions <- fcdf_full_filt %>%
+  # Calculcate possible stimuli combinations per trial and participant
+  group_by(trial_index, workerId) %>%
+  tidyr::expand(SpeakerID, SpeakerID) %>%
+  # Rename new variables
+  rename(Stimuli1 = 3, Stimuli2 = 4) %>%
+  # Filter out combinations of the same stimuli
+  dplyr::filter(Stimuli1 != Stimuli2) %>%
+  # Join with previously generated combinations and combination IDs
+  right_join(combinations_anon,
+             by = c("Stimuli1" = "Stimuli1ID", "Stimuli2" = "Stimuli2ID")) %>%
+  group_by(workerId, trial_index, pair_id_unordered) %>%
+  # select one of two stimuli orders for each Combination ID
+  slice_head() %>%
+  # slice(1) %>%
+  select(Stimuli1, Stimuli2, pair_id_unordered, pair_id_ordered) %>%
+  # Join with grouping ratings for Stimuli 1
+  right_join(fcdf_full_subset,
+             by = c("Stimuli1" = "SpeakerID", "trial_index", "workerId")) %>%
+  rename(Stimuli1Rating = ratings) %>%
+  # Join with grouping ratings for Stimuli 2
+  right_join(fcdf_full_subset,
+             by = c("Stimuli2" = "SpeakerID", "trial_index", "workerId")) %>%
+  rename(Stimuli2Rating = ratings) %>%
+  # Remove NAs
+  filter(!is.na(Stimuli1)) %>%
+  # Indicate if Stimuli 1 group = Stimuli 2 group
+  mutate(
+    SameGroup = case_when(Stimuli1Rating == Stimuli2Rating ~ T,
+                          TRUE ~ F),
+    SameGroupN = case_when(Stimuli1Rating == Stimuli2Rating ~ 1,
+                           TRUE ~ 0)
+  ) %>%
+  # For each combination ID, calculate the number of times it occurs across all participants, and the proportion of these times they have been been placed in the same group
+  group_by(pair_id_unordered) %>%
+  mutate(
+    blocN = n(),
+    totalSameGroupN = sum(SameGroupN),
+    propSame = totalSameGroupN / blocN
+  ) %>%
+  ungroup()
+```
+
+## Create matrix
+
+The data needs to be in a particular format to work within the `smacof`
+package, and the chunk below will produce that.
+
+```{r create-similarity-matrix}
+prop_top_half <- fc_proportions %>%
+  select(Stimuli1, Stimuli2, propSame) %>%
+  distinct()
+
+prop_bottom_half <- fc_proportions %>%
+  select(Stimuli1, Stimuli2, propSame) %>%
+  distinct() %>%
+  rename(Stimuli2 = Stimuli1, Stimuli1 = Stimuli2)
+
+prop_combined <- rbind(prop_top_half, prop_bottom_half)
+
+# Convert to wide df
+sim_matrix <-
+  reshape2::dcast(prop_combined, Stimuli1 ~ Stimuli2, value.var = 'propSame')
+
+# Convert to matrix
+sim_matrix <-
+  sim_matrix %>% remove_rownames %>% column_to_rownames(var = "Stimuli1") %>%
+  as.matrix()
+
+```
+
+We can now save the output matrix.
+
+```{r save-matrix}
+file_name_full_matrix_anon <-
+  paste0('similarity_matrix_full_anon_', date, '.rds', sep = '')
+
+write_rds(sim_matrix, here('Data', file_name_full_matrix_anon))
+```
+
+# Social subset matrix {#sec-only-social-labels-matrix}
+
+This section applies the same process as @sec-full-data-set-matrix but
+to the social subset of the data. Participants excluded in
+@sec-filter-data-frames remain excluded here.
+
+## Subset data frames
+
+-   Include data only from social labels
+
+```{r select-social-responses}
+fcdf_social <- fcdf_full_filt %>%
+  mutate(
+    label_category3 = case_when(
+      label_category2 == c("Personality") ~ "SocialFactors",
+      T ~ label_category3
+    ),
+    label_category3 = case_when(
+      label_category3 == c("AccentTypes") ~ "SocialFactors",
+      T ~ label_category3
+    )
+  ) %>%
+  filter(label_category3 %in% c("SocialFactors"))
+
+```
+
+```{r save-label-df}
+file_name_labels <-
+  paste0('fcdf_social_anon_', date, '.rds', sep = '')
+
+write_rds(fcdf_social,
+          here('Data', file_name_labels))
+```
+
+## Calculate proportions (social subset)
+
+The code below:
+
+-   Calculates all possible combinations of the stimuli in each trial
+    for each participant
+
+-   Then joins these combinations with previously generated combination
+    IDs (same ID for stimuli pairs regardless of stimuli order in each
+    pair)
+
+-   Groups the combinations by participant, trial ID (each participant
+    completes three trials) and combination ID (bloc) and selects the
+    top row of this group (each bloc will come up twice because there
+    are two possible stimuli orders per combination ID)
+
+-   Joins these combinations with the group ratings from the results
+    twice (ratings for Stimuli 1 and for Stimuli 2)
+
+-   Indicate whether the rating (grouping) for Stimuli 1 is the same as
+    for Stimuli 2 (i.e., were they placed in the same group)
+
+-   Calculate number of times each combination has occurred across all
+    participants, then the proportion of those times that they have been
+    placed in the same group
+
+```{r calculate-proportions-social}
+fcdf_social_subset <- fcdf_social %>%
+  select(SpeakerID, ratings, workerId, trial_index)
+
+fc_social_proportions <- fcdf_social %>%
+  # Calculcate possible stimuli combinations per trial and participant
+  group_by(trial_index, workerId) %>%
+  tidyr::expand(SpeakerID, SpeakerID) %>%
+  # Rename new variables
+  rename(Stimuli1 = 3, Stimuli2 = 4) %>%
+  # Filter out combinations of the same stimuli
+  dplyr::filter(Stimuli1 != Stimuli2) %>%
+  # Join with previously generated combinations and combination IDs
+  right_join(combinations_anon,
+             by = c("Stimuli1" = "Stimuli1ID", "Stimuli2" = "Stimuli2ID")) %>%
+  group_by(workerId, trial_index, pair_id_unordered) %>%
+  # select one of two stimuli orders for each Combination ID
+  slice_head() %>%
+  # slice(1) %>%
+  select(Stimuli1, Stimuli2, pair_id_unordered, pair_id_ordered) %>%
+  # Join with grouping ratings for Stimuli 1
+  right_join(fcdf_full_subset,
+             by = c("Stimuli1" = "SpeakerID", "trial_index", "workerId")) %>%
+  rename(Stimuli1Rating = ratings) %>%
+  # Join with grouping ratings for Stimuli 2
+  right_join(fcdf_full_subset,
+             by = c("Stimuli2" = "SpeakerID", "trial_index", "workerId")) %>%
+  rename(Stimuli2Rating = ratings) %>%
+  # Remove NAs
+  filter(!is.na(Stimuli1)) %>%
+  # Indicate if Stimuli 1 group = Stimuli 2 group
+  mutate(
+    SameGroup = case_when(Stimuli1Rating == Stimuli2Rating ~ T,
+                          TRUE ~ F),
+    SameGroupN = case_when(Stimuli1Rating == Stimuli2Rating ~ 1,
+                           TRUE ~ 0)
+  ) %>%
+  # For each combination ID, calculate the number of times it occurs across all participants, and the proportion of these times they have been been placed in the same group
+  group_by(pair_id_unordered) %>%
+  mutate(
+    blocN = n(),
+    totalSameGroupN = sum(SameGroupN),
+    propSame = totalSameGroupN / blocN
+  ) %>%
+  ungroup()
+```
+
+## Create matrix (social subset)
+
+Create similarity matrix and save output.
+
+```{r create-similarity-matrix-social}
+prop_top_half <- fc_social_proportions %>%
+  select(Stimuli1, Stimuli2, propSame) %>%
+  distinct()
+
+prop_bottom_half <- fc_social_proportions %>%
+  select(Stimuli1, Stimuli2, propSame) %>%
+  distinct() %>%
+  rename(Stimuli2 = Stimuli1, Stimuli1 = Stimuli2)
+
+prop_combined <- rbind(prop_top_half, prop_bottom_half)
+
+# Convert to wide df
+sim_matrix <-
+  reshape2::dcast(prop_combined, Stimuli1 ~ Stimuli2, value.var = 'propSame')
+
+# Convert to matrix
+sim_matrix <-
+  sim_matrix %>% remove_rownames %>% column_to_rownames(var = "Stimuli1") %>%
+  as.matrix()
+
+```
+
+```{r save-matrix-social}
+file_name_social_matrix <-
+  paste0('similarity_matrix_social_anon_', date, '.rds', sep = '')
+
+write_rds(sim_matrix, here('Data', file_name_social_matrix))
+```
