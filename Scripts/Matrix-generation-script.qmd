@@ -78,7 +78,7 @@ editor:
 This file generates the similarity matrices used in the supplementary
 materials for the manuscript "Exploring the social meaning of the
 'leader-lagger vowels' in New Zealand English". The materials can be
-viewed \[here\].
+viewed [here](https://nzilbb.github.io/qb-free-classification-public/Markdown/Supplementary-materials-script.html).
 
 This script generates similarity matrices for MDS analysis for (a) the
 full data set in @sec-full-data-set-matrix and (b) a subset of the data

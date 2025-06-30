@@ -114,7 +114,9 @@ The materials have the following structure:
 
 If you would like to see how we scaled participant similarity ratings
 and created the similarity matrices used in this file, please refer to
-the Generate-data-frames.qmd script in the github repository.
+the file `Matrix-generation-script.qmd` in the github repository or view
+the file
+[here](https://nzilbb.github.io/qb-free-classification-public/Scripts/Matrix-generation-script.html).
 
 # Libraries and dataframes {#sec-libraries-and-dataframes}
 
